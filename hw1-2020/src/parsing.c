@@ -219,7 +219,7 @@ Declaration makeDeclarationNode(Token declare_type, Token identifier)
     return tree_node;
 }
 
-Declarations *MakeDeclarationTree(Declaration decl, Declarations *decls)
+Declarations *makeDeclarationTree(Declaration decl, Declarations *decls)
 {
     Declarations *new_tree = (Declarations *)malloc(sizeof(Declarations));
     new_tree->first = decl;
