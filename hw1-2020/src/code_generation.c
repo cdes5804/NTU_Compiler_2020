@@ -26,10 +26,10 @@ void fprint_expr( FILE *target, Expression *expr)
     if (expr->leftOperand == NULL) {
         switch ((expr->v).type) {
             case Identifier:
-                fprintf(target, "l%c\n",(expr->v).val.id);
+                fprintf(target, "l%c\n", (expr->v).val.id);
                 break;
             case IntConst:
-                fprintf(target, "%d\n",(expr->v).val.ivalue);
+                fprintf(target, "%d\n", (expr->v).val.ivalue);
                 break;
             case FloatConst:
                 fprintf(target, "%f\n", (expr->v).val.fvalue);
@@ -41,7 +41,7 @@ void fprint_expr( FILE *target, Expression *expr)
     } else {
         fprint_expr(target, expr->leftOperand);
         if (expr->rightOperand == NULL) {
-            fprintf(target,"5k\n");
+            fprintf(target, "5k\n");
         } else {
             //	fprint_right_expr(expr->rightOperand);
             fprint_expr(target, expr->rightOperand);
@@ -59,7 +59,7 @@ void gencode(Program prog, FILE * target)
         stmt = stmts->first;
         switch (stmt.type) {
             case Print:
-                fprintf(target, "l%c\n",stmt.stmt.variable);
+                fprintf(target, "l%c\n", stmt.stmt.variable);
                 fprintf(target, "p\n");
                 break;
             case Assignment:
