@@ -1,0 +1,14 @@
+i xxxabce
+f _xxx_brrrr
+i xxxc_moon
+i xxxdemonslayer
+
+xxxabce = 1
+_xxx_brrrr = 2.1
+xxxc_moon = 1
+xxxdemonslayer = 2
+
+xxxc_moon = xxxabce + xxxdemonslayer
+_xxx_brrrr = 3.3
+
+p xxxc_moon

@@ -114,6 +114,8 @@ typedef struct SymbolTable{
 
 Token getNumericToken( FILE *source, char c );
 Token scanner( FILE *source );
+void getString(FILE *source, char c, char tok[]);
+void ungetString(FILE *source, char buf[]);
 Declaration makeDeclarationNode( Token declare_type, Token identifier );
 Declarations *makeDeclarationTree( Declaration decl, Declarations *decls );
 Declaration parseDeclaration( FILE *source, Token token );
@@ -139,6 +141,7 @@ void check( Program *program, SymbolTable * table);
 void fprint_op( FILE *target, ValueType op );
 void fprint_expr( FILE *target, Expression *expr );
 void gencode( Program prog, FILE * target );
+char getId(char *str);
 
 void print_expr( Expression *expr );
 void test_parser( FILE *source );
