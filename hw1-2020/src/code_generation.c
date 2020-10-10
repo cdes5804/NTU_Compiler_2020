@@ -25,7 +25,7 @@ void fprint_expr( FILE *target, Expression *expr)
 {
 
     if (expr->leftOperand == NULL) {
-        switch ((expr->v).type ){
+        switch ((expr->v).type ) {
             case Identifier:
                 fprintf(target,"l%c\n",(expr->v).val.id);
                 break;
