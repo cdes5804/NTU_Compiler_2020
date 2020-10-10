@@ -15,7 +15,7 @@
 
 typedef enum TokenType {FloatDeclaration, IntegerDeclaration, PrintOp, AssignmentOp, PlusOp, MinusOp,
              MulOp, DivOp, Alphabet, IntValue, FloatValue, EOFsymbol} TokenType;
-typedef enum DataType {Int, Float, Notype}DataType;
+typedef enum DataType {Int, Float, Notype} DataType;
 typedef enum StmtType {Print, Assignment} StmtType;
 typedef enum ValueType {Identifier, IntConst, FloatConst, PlusNode, MinusNode, MulNode, DivNode, IntToFloatConvertNode} ValueType;
 typedef enum Operation {Plus, Minus, Mul, Div, Assign, IntToFloatConvert} Operation;
@@ -88,7 +88,7 @@ typedef struct AssignmentStatement {
 /* For stmt production or say one statement*/
 typedef struct Statement {
     StmtType type;
-    union{
+    union {
         char variable;              /* print statement */
         AssignmentStatement assign;
     } stmt;
