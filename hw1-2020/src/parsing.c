@@ -215,12 +215,7 @@ Declaration makeDeclarationNode(Token declare_type, Token identifier)
         default:
             break;
     }
-<<<<<<< HEAD
-
-    tree_node.name = identifier.tok[0];
-=======
     tree_node.name = getId(identifier.tok);
->>>>>>> Implement multi-character variable name
 
     return tree_node;
 }
