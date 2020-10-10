@@ -7,10 +7,10 @@
 /********************************************************
   Parsing
  *********************************************************/
-Declaration parseDeclaration( FILE *source, Token token )
+Declaration parseDeclaration(FILE *source, Token token)
 {
     Token token2;
-    switch(token.type){
+    switch (token.type) {
         case FloatDeclaration:
         case IntegerDeclaration:
             token2 = scanner(source);
@@ -20,24 +20,24 @@ Declaration parseDeclaration( FILE *source, Token token )
                 printf("Syntax Error: %s cannot be used as id\n", token2.tok);
                 exit(1);
             }
-            return makeDeclarationNode( token, token2 );
+            return makeDeclarationNode(token, token2);
         default:
             printf("Syntax Error: Expect Declaration %s\n", token.tok);
             exit(1);
     }
 }
 
-Declarations *parseDeclarations( FILE *source )
+Declarations *parseDeclarations(FILE *source)
 {
     Token token = scanner(source);
     Declaration decl;
     Declarations *decls;
-    switch(token.type){
+    switch (token.type) {
         case FloatDeclaration:
         case IntegerDeclaration:
             decl = parseDeclaration(source, token);
             decls = parseDeclarations(source);
-            return makeDeclarationTree( decl, decls );
+            return makeDeclarationTree(decl, decls);
         case PrintOp:
         case Alphabet:
             ungetc(token.tok[0], source);
@@ -50,13 +50,13 @@ Declarations *parseDeclarations( FILE *source )
     }
 }
 
-Expression *parseValue( FILE *source )
+Expression *parseValue(FILE *source)
 {
     Token token = scanner(source);
-    Expression *value = (Expression *)malloc( sizeof(Expression) );
+    Expression *value = (Expression *)malloc(sizeof(Expression));
     value->leftOperand = value->rightOperand = NULL;
 
-    switch(token.type){
+    switch (token.type) {
         case Alphabet:
             (value->v).type = Identifier;
             (value->v).val.id = token.tok[0];
@@ -77,21 +77,21 @@ Expression *parseValue( FILE *source )
     return value;
 }
 
-Expression *parseExpressionTail( FILE *source, Expression *lvalue )
+Expression *parseExpressionTail(FILE *source, Expression *lvalue)
 {
     Token token = scanner(source);
     Expression *expr;
 
-    switch(token.type){
+    switch (token.type) {
         case PlusOp:
-            expr = (Expression *)malloc( sizeof(Expression) );
+            expr = (Expression *)malloc(sizeof(Expression));
             (expr->v).type = PlusNode;
             (expr->v).val.op = Plus;
             expr->leftOperand = lvalue;
             expr->rightOperand = parseValue(source);
             return parseExpressionTail(source, expr);
         case MinusOp:
-            expr = (Expression *)malloc( sizeof(Expression) );
+            expr = (Expression *)malloc(sizeof(Expression));
             (expr->v).type = MinusNode;
             (expr->v).val.op = Minus;
             expr->leftOperand = lvalue;
@@ -109,21 +109,21 @@ Expression *parseExpressionTail( FILE *source, Expression *lvalue )
     }
 }
 
-Expression *parseExpression( FILE *source, Expression *lvalue )
+Expression *parseExpression(FILE *source, Expression *lvalue)
 {
     Token token = scanner(source);
     Expression *expr;
 
-    switch(token.type){
+    switch (token.type) {
         case PlusOp:
-            expr = (Expression *)malloc( sizeof(Expression) );
+            expr = (Expression *)malloc(sizeof(Expression));
             (expr->v).type = PlusNode;
             (expr->v).val.op = Plus;
             expr->leftOperand = lvalue;
             expr->rightOperand = parseValue(source);
             return parseExpressionTail(source, expr);
         case MinusOp:
-            expr = (Expression *)malloc( sizeof(Expression) );
+            expr = (Expression *)malloc(sizeof(Expression));
             (expr->v).type = MinusNode;
             (expr->v).val.op = Minus;
             expr->leftOperand = lvalue;
@@ -141,7 +141,7 @@ Expression *parseExpression( FILE *source, Expression *lvalue )
     }
 }
 
-Statement parseStatement( FILE *source, Token token )
+Statement parseStatement(FILE *source, Token token)
 {
     Token next_token;
     Expression *value, *expr;
@@ -173,14 +173,14 @@ Statement parseStatement( FILE *source, Token token )
     }
 }
 
-Statements *parseStatements( FILE * source )
+Statements *parseStatements(FILE * source)
 {
 
     Token token = scanner(source);
     Statement stmt;
     Statements *stmts;
 
-    switch(token.type){
+    switch (token.type) {
         case Alphabet:
         case PrintOp:
             stmt = parseStatement(source, token);
@@ -197,11 +197,11 @@ Statements *parseStatements( FILE * source )
 /*********************************************************************
   Build AST
  **********************************************************************/
-Declaration makeDeclarationNode( Token declare_type, Token identifier )
+Declaration makeDeclarationNode(Token declare_type, Token identifier)
 {
     Declaration tree_node;
 
-    switch(declare_type.type){
+    switch (declare_type.type) {
         case FloatDeclaration:
             tree_node.type = Float;
             break;
@@ -211,14 +211,15 @@ Declaration makeDeclarationNode( Token declare_type, Token identifier )
         default:
             break;
     }
+
     tree_node.name = identifier.tok[0];
 
     return tree_node;
 }
 
-Declarations *makeDeclarationTree( Declaration decl, Declarations *decls )
+Declarations *makeDeclarationTree(Declaration decl, Declarations *decls)
 {
-    Declarations *new_tree = (Declarations *)malloc( sizeof(Declarations) );
+    Declarations *new_tree = (Declarations *)malloc(sizeof(Declarations));
     new_tree->first = decl;
     new_tree->rest = decls;
 
@@ -226,7 +227,7 @@ Declarations *makeDeclarationTree( Declaration decl, Declarations *decls )
 }
 
 
-Statement makeAssignmentNode( char id, Expression *v, Expression *expr_tail )
+Statement makeAssignmentNode(char id, Expression *v, Expression *expr_tail)
 {
     Statement stmt;
     AssignmentStatement assign;
@@ -242,7 +243,7 @@ Statement makeAssignmentNode( char id, Expression *v, Expression *expr_tail )
     return stmt;
 }
 
-Statement makePrintNode( char id )
+Statement makePrintNode(char id) 
 {
     Statement stmt;
     stmt.type = Print;
@@ -251,9 +252,9 @@ Statement makePrintNode( char id )
     return stmt;
 }
 
-Statements *makeStatementTree( Statement stmt, Statements *stmts )
+Statements *makeStatementTree(Statement stmt, Statements *stmts)
 {
-    Statements *new_tree = (Statements *)malloc( sizeof(Statements) );
+    Statements *new_tree = (Statements *)malloc(sizeof(Statements));
     new_tree->first = stmt;
     new_tree->rest = stmts;
 
@@ -261,7 +262,7 @@ Statements *makeStatementTree( Statement stmt, Statements *stmts )
 }
 
 /* parser */
-Program parser( FILE *source )
+Program parser(FILE *source)
 {
     Program program;
 

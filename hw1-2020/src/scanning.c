@@ -8,17 +8,17 @@
   Scanning 
  *********************************************/
 
-Token getNumericToken( FILE *source, char c )
+Token getNumericToken(FILE *source, char c)
 {
     Token token;
     int i = 0;
 
-    while( isdigit(c) ) {
+    while (isdigit(c)) {
         token.tok[i++] = c;
         c = fgetc(source);
     }
 
-    if( c != '.' ){
+    if (c != '.') {
         ungetc(c, source);
         token.tok[i] = '\0';
         token.type = IntValue;
@@ -28,13 +28,13 @@ Token getNumericToken( FILE *source, char c )
     token.tok[i++] = '.';
 
     c = fgetc(source);
-    if( !isdigit(c) ){
+    if (!isdigit(c)) {
         ungetc(c, source);
         printf("Expect a digit : %c\n", c);
         exit(1);
     }
 
-    while( isdigit(c) ){
+    while (isdigit(c)) {
         token.tok[i++] = c;
         c = fgetc(source);
     }
@@ -45,34 +45,35 @@ Token getNumericToken( FILE *source, char c )
     return token;
 }
 
-Token scanner( FILE *source )
+Token scanner(FILE *source)
 {
     char c;
     Token token;
 
-    while( !feof(source) ){
+    while (!feof(source)) {
         c = fgetc(source);
 
-        while( isspace(c) ) c = fgetc(source);
+        while (isspace(c))
+            c = fgetc(source);
 
-        if( isdigit(c) )
+        if (isdigit(c))
             return getNumericToken(source, c);
 
         token.tok[0] = c;
         token.tok[1] = '\0';
-        if( islower(c) ){
-            if( c == 'f' )
+        if (islower(c)) {
+            if (c == 'f')
                 token.type = FloatDeclaration;
-            else if( c == 'i' )
+            else if (c == 'i')
                 token.type = IntegerDeclaration;
-            else if( c == 'p' )
+            else if (c == 'p')
                 token.type = PrintOp;
             else
                 token.type = Alphabet;
             return token;
         }
 
-        switch(c){
+        switch(c) {
             case '=':
                 token.type = AssignmentOp;
                 return token;

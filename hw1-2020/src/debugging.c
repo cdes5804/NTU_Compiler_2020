@@ -9,11 +9,11 @@
  ****************************************/
 void print_expr(Expression *expr)
 {
-    if(expr == NULL)
+    if (expr == NULL)
         return;
-    else{
+    else {
         print_expr(expr->leftOperand);
-        switch((expr->v).type){
+        switch ((expr->v).type) {
             case Identifier:
                 printf("%c ", (expr->v).val.id);
                 break;
@@ -46,7 +46,7 @@ void print_expr(Expression *expr)
     }
 }
 
-void test_parser( FILE *source )
+void test_parser(FILE *source)
 {
     Declarations *decls;
     Statements *stmts;
@@ -56,7 +56,7 @@ void test_parser( FILE *source )
 
     decls = program.declarations;
 
-    while(decls != NULL){
+    while (decls != NULL) {
         decl = decls->first;
         if(decl.type == Int)
             printf("i ");
@@ -68,13 +68,13 @@ void test_parser( FILE *source )
 
     stmts = program.statements;
 
-    while(stmts != NULL){
+    while (stmts != NULL) {
         stmt = stmts->first;
-        if(stmt.type == Print){
+        if (stmt.type == Print) {
             printf("p %c ", stmt.stmt.variable);
         }
 
-        if(stmt.type == Assignment){
+        if (stmt.type == Assignment) {
             printf("%c = ", stmt.stmt.assign.id);
             print_expr(stmt.stmt.assign.expr);
         }

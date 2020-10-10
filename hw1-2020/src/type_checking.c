@@ -7,15 +7,15 @@
   Type checking
  *********************************************************************/
 
-void convertType( Expression * old, DataType type )
+void convertType(Expression * old, DataType type)
 {
-    if(old->type == Float && type == Int){
+    if (old->type == Float && type == Int) {
         printf("error : can't convert float to integer\n");
         return;
     }
-    if(old->type == Int && type == Float){
-        Expression *tmp = (Expression *)malloc( sizeof(Expression) );
-        if(old->v.type == Identifier)
+    if (old->type == Int && type == Float) {
+        Expression *tmp = (Expression *)malloc(sizeof(Expression));
+        if (old->v.type == Identifier)
             printf("convert to float %c \n",old->v.val.id);
         else
             printf("convert to float %d \n", old->v.val.ivalue);
@@ -34,9 +34,9 @@ void convertType( Expression * old, DataType type )
     }
 }
 
-DataType generalize( Expression *left, Expression *right )
+DataType generalize(Expression *left, Expression *right)
 {
-    if(left->type == Float || right->type == Float){
+    if (left->type == Float || right->type == Float) {
         printf("generalize : float\n");
         return Float;
     }
@@ -44,19 +44,19 @@ DataType generalize( Expression *left, Expression *right )
     return Int;
 }
 
-DataType lookup_table( SymbolTable *table, char c )
+DataType lookup_table(SymbolTable *table, char c)
 {
-    int id = c-'a';
-    if( table->table[id] != Int && table->table[id] != Float)
+    int id = c - 'a';
+    if (table->table[id] != Int && table->table[id] != Float)
         printf("Error : identifier %c is not declared\n", c);//error
     return table->table[id];
 }
 
-void checkexpression( Expression * expr, SymbolTable * table )
+void checkexpression(Expression * expr, SymbolTable * table)
 {
     char c;
-    if(expr->leftOperand == NULL && expr->rightOperand == NULL){
-        switch(expr->v.type){
+    if (expr->leftOperand == NULL && expr->rightOperand == NULL) {
+        switch (expr->v.type) {
             case Identifier:
                 c = expr->v.val.id;
                 printf("identifier : %c\n",c);
@@ -74,8 +74,7 @@ void checkexpression( Expression * expr, SymbolTable * table )
             default:
                 break;
         }
-    }
-    else{
+    } else {
         Expression *left = expr->leftOperand;
         Expression *right = expr->rightOperand;
 
@@ -89,9 +88,9 @@ void checkexpression( Expression * expr, SymbolTable * table )
     }
 }
 
-void checkstmt( Statement *stmt, SymbolTable * table )
+void checkstmt(Statement *stmt, SymbolTable * table)
 {
-    if(stmt->type == Assignment){
+    if (stmt->type == Assignment) {
         AssignmentStatement assign = stmt->stmt.assign;
         printf("assignment : %c \n",assign.id);
         checkexpression(assign.expr, table);
@@ -101,18 +100,16 @@ void checkstmt( Statement *stmt, SymbolTable * table )
         } else {
             convertType(assign.expr, stmt->stmt.assign.type);
         }
-    }
-    else if (stmt->type == Print){
+    } else if (stmt->type == Print){
         printf("print : %c \n",stmt->stmt.variable);
         lookup_table(table, stmt->stmt.variable);
-    }
-    else printf("error : statement error\n");//error
+    } else printf("error : statement error\n");//error
 }
 
-void check( Program *program, SymbolTable * table )
+void check(Program *program, SymbolTable * table)
 {
     Statements *stmts = program->statements;
-    while(stmts != NULL){
+    while (stmts != NULL) {
         checkstmt(&stmts->first,table);
         stmts = stmts->rest;
     }
