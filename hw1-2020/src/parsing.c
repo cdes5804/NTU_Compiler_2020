@@ -40,7 +40,7 @@ Declarations *parseDeclarations( FILE *source )
             return makeDeclarationTree( decl, decls );
         case PrintOp:
         case Alphabet:
-            ungetString(source, token.tok);
+            unGetString(source, token.tok);
             return NULL;
         case EOFsymbol:
             return NULL;
@@ -98,7 +98,7 @@ Expression *parseExpressionTail( FILE *source, Expression *lvalue )
             expr->rightOperand = parseValue(source);
             return parseExpressionTail(source, expr);
         case Alphabet:
-            ungetString(source, token.tok);
+            unGetString(source, token.tok);
             return lvalue;
         case PrintOp:
             ungetc(token.tok[0], source);
@@ -132,7 +132,7 @@ Expression *parseExpression( FILE *source, Expression *lvalue )
             expr->rightOperand = parseValue(source);
             return parseExpressionTail(source, expr);
         case Alphabet:
-            ungetString(source, token.tok);
+            unGetString(source, token.tok);
             return NULL;
         case PrintOp:
             ungetc(token.tok[0], source);

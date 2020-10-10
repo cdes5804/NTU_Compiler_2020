@@ -62,7 +62,7 @@ void getString(FILE *source, char c, char tok[])
     tok[len] = '\0';
 }
 
-void ungetString(FILE *source, char buf[])
+void unGetString(FILE *source, char buf[])
 {
     for (int i = strlen(buf)-1; i >= 0; i--)
         ungetc(buf[i], source);
