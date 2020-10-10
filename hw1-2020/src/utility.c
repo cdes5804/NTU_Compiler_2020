@@ -43,10 +43,6 @@ char getId(char *str)
         fprintf(stderr, "The number of different variables exceeds the limit(23)\n");
         exit(1);
     } else {
-        fprintf(stderr, "get %c\n", id);
-        r = id;
-        ++id;
-        if (id == 'f' || id == 'i' || id == 'p') ++id;
-        return r;
+        return id++;
     }
 }
