@@ -6,9 +6,9 @@
 /***********************************************************************
   Code generation
  ************************************************************************/
-void fprint_op( FILE *target, ValueType op )
+void fprint_op(FILE *target, ValueType op)
 {
-    switch(op){
+    switch (op) {
         case MinusNode:
             fprintf(target,"-\n");
             break;
@@ -24,8 +24,8 @@ void fprint_op( FILE *target, ValueType op )
 void fprint_expr( FILE *target, Expression *expr)
 {
 
-    if(expr->leftOperand == NULL){
-        switch( (expr->v).type ){
+    if (expr->leftOperand == NULL) {
+        switch ((expr->v).type ){
             case Identifier:
                 fprintf(target,"l%c\n",(expr->v).val.id);
                 break;
@@ -39,13 +39,11 @@ void fprint_expr( FILE *target, Expression *expr)
                 fprintf(target,"Error In fprint_left_expr. (expr->v).type=%d\n",(expr->v).type);
                 break;
         }
-    }
-    else{
+    } else {
         fprint_expr(target, expr->leftOperand);
-        if(expr->rightOperand == NULL){
+        if (expr->rightOperand == NULL) {
             fprintf(target,"5k\n");
-        }
-        else{
+        } else {
             //	fprint_right_expr(expr->rightOperand);
             fprint_expr(target, expr->rightOperand);
             fprint_op(target, (expr->v).type);
@@ -58,9 +56,9 @@ void gencode(Program prog, FILE * target)
     Statements *stmts = prog.statements;
     Statement stmt;
 
-    while(stmts != NULL){
+    while (stmts != NULL) {
         stmt = stmts->first;
-        switch(stmt.type){
+        switch (stmt.type) {
             case Print:
                 fprintf(target,"l%c\n",stmt.stmt.variable);
                 fprintf(target,"p\n");
