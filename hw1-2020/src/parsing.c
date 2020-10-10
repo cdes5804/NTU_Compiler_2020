@@ -40,7 +40,7 @@ Declarations *parseDeclarations(FILE *source)
             return makeDeclarationTree(decl, decls);
         case PrintOp:
         case Alphabet:
-            ungetc(token.tok[0], source);
+            unGetString(source, token.tok);
             return NULL;
         case EOFsymbol:
             return NULL;
@@ -59,7 +59,7 @@ Expression *parseValue(FILE *source)
     switch (token.type) {
         case Alphabet:
             (value->v).type = Identifier;
-            (value->v).val.id = token.tok[0];
+            (value->v).val.id = getId(token.tok);
             break;
         case IntValue:
             (value->v).type = IntConst;
@@ -98,6 +98,8 @@ Expression *parseExpressionTail(FILE *source, Expression *lvalue)
             expr->rightOperand = parseValue(source);
             return parseExpressionTail(source, expr);
         case Alphabet:
+            unGetString(source, token.tok);
+            return lvalue;
         case PrintOp:
             ungetc(token.tok[0], source);
             return lvalue;
@@ -130,6 +132,8 @@ Expression *parseExpression(FILE *source, Expression *lvalue)
             expr->rightOperand = parseValue(source);
             return parseExpressionTail(source, expr);
         case Alphabet:
+            unGetString(source, token.tok);
+            return NULL;
         case PrintOp:
             ungetc(token.tok[0], source);
             return NULL;
@@ -152,7 +156,7 @@ Statement parseStatement(FILE *source, Token token)
             if(next_token.type == AssignmentOp){
                 value = parseValue(source);
                 expr = parseExpression(source, value);
-                return makeAssignmentNode(token.tok[0], value, expr);
+                return makeAssignmentNode(getId(token.tok), value, expr);
             }
             else{
                 printf("Syntax Error: Expect an assignment op %s\n", next_token.tok);
@@ -161,7 +165,7 @@ Statement parseStatement(FILE *source, Token token)
         case PrintOp:
             next_token = scanner(source);
             if(next_token.type == Alphabet)
-                return makePrintNode(next_token.tok[0]);
+                return makePrintNode(getId(next_token.tok));
             else{
                 printf("Syntax Error: Expect an identifier %s\n", next_token.tok);
                 exit(1);
@@ -211,8 +215,7 @@ Declaration makeDeclarationNode(Token declare_type, Token identifier)
         default:
             break;
     }
-
-    tree_node.name = identifier.tok[0];
+    tree_node.name = getId(identifier.tok);
 
     return tree_node;
 }
