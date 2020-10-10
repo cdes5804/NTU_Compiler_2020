@@ -28,7 +28,7 @@ void convertType(Expression * old, DataType type)
         v.type = IntToFloatConvertNode;
         v.val.op = IntToFloatConvert;
         old->v = v;
-        old->type = Int;
+        old->type = Float;
         old->leftOperand = tmp;
         old->rightOperand = NULL;
     }
@@ -100,7 +100,7 @@ void checkstmt(Statement *stmt, SymbolTable * table)
         } else {
             convertType(assign.expr, stmt->stmt.assign.type);
         }
-    } else if (stmt->type == Print){
+    } else if (stmt->type == Print) {
         printf("print : %c \n",stmt->stmt.variable);
         lookup_table(table, stmt->stmt.variable);
     } else printf("error : statement error\n");//error
