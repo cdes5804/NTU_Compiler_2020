@@ -24,6 +24,7 @@ int main(int argc, char *argv[])
             fclose(source);
             symtab = build(program);
             check(&program, &symtab);
+            program.statements = optimize(program.statements);
             gencode(program, target);
         }
     } else {

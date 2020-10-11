@@ -16,7 +16,7 @@ void convertType(Expression * old, DataType type)
     if (old->type == Int && type == Float) {
         Expression *tmp = (Expression *)malloc(sizeof(Expression));
         if (old->v.type == Identifier)
-            printf("convert to float %c \n",old->v.val.id);
+            printf("convert to float %c \n", old->v.val.id);
         else
             printf("convert to float %d \n", old->v.val.ivalue);
         tmp->v = old->v;
@@ -92,7 +92,7 @@ void checkstmt(Statement *stmt, SymbolTable * table)
 {
     if (stmt->type == Assignment) {
         AssignmentStatement assign = stmt->stmt.assign;
-        printf("assignment : %c \n",assign.id);
+        printf("assignment : %c \n", assign.id);
         checkexpression(assign.expr, table);
         stmt->stmt.assign.type = lookup_table(table, assign.id);
         if (assign.expr->type == Float && stmt->stmt.assign.type == Int) {
@@ -101,7 +101,7 @@ void checkstmt(Statement *stmt, SymbolTable * table)
             convertType(assign.expr, stmt->stmt.assign.type);
         }
     } else if (stmt->type == Print) {
-        printf("print : %c \n",stmt->stmt.variable);
+        printf("print : %c \n", stmt->stmt.variable);
         lookup_table(table, stmt->stmt.variable);
     } else printf("error : statement error\n");//error
 }
@@ -110,7 +110,7 @@ void check(Program *program, SymbolTable * table)
 {
     Statements *stmts = program->statements;
     while (stmts != NULL) {
-        checkstmt(&stmts->first,table);
+        checkstmt(&stmts->first, table);
         stmts = stmts->rest;
     }
 }
