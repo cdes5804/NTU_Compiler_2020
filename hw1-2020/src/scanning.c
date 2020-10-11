@@ -97,6 +97,13 @@ Token scanner(FILE *source)
             case '/':
                 token.type = DivOp;
                 return token;
+            case '(':
+                token.type = OpenParenthesis;
+                return token;
+            case ')':
+                token.tok[0] = ')';
+                token.type = CloseParenthesis;
+                return token;
             case EOF:
                 token.type = EOFsymbol;
                 token.tok[0] = '\0';
