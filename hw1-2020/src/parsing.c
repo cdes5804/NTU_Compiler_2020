@@ -150,23 +150,22 @@ Statement parseStatement(FILE *source, Token token)
     Token next_token;
     Expression *value, *expr;
 
-    switch(token.type){
+    switch (token.type) {
         case Alphabet:
             next_token = scanner(source);
-            if(next_token.type == AssignmentOp){
+            if (next_token.type == AssignmentOp) {
                 value = parseValue(source);
                 expr = parseExpression(source, value);
                 return makeAssignmentNode(getId(token.tok), value, expr);
-            }
-            else{
+            } else {
                 printf("Syntax Error: Expect an assignment op %s\n", next_token.tok);
                 exit(1);
             }
         case PrintOp:
             next_token = scanner(source);
-            if(next_token.type == Alphabet)
+            if (next_token.type == Alphabet)
                 return makePrintNode(getId(next_token.tok));
-            else{
+            else {
                 printf("Syntax Error: Expect an identifier %s\n", next_token.tok);
                 exit(1);
             }
@@ -237,7 +236,7 @@ Statement makeAssignmentNode(char id, Expression *v, Expression *expr_tail)
 
     stmt.type = Assignment;
     assign.id = id;
-    if(expr_tail == NULL)
+    if (expr_tail == NULL)
         assign.expr = v;
     else
         assign.expr = expr_tail;
