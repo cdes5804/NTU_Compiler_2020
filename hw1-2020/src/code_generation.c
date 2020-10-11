@@ -15,6 +15,12 @@ void fprint_op(FILE *target, ValueType op)
         case PlusNode:
             fprintf(target, "+\n");
             break;
+        case MulNode:
+            fprintf(target, "*\n");
+            break;
+        case DivNode:
+            fprintf(target, "/\n");
+            break;
         default:
             fprintf(target, "Error in fprintf_op ValueType = %d\n", op);
             break;
