@@ -91,10 +91,51 @@ Expression *parseParenthesis(FILE *source)
     return expr;
 }
 
+Expression *parseRest2(FILE *source, Expression *lvalue)
+{
+    Token token = scanner(source);
+    Expression *expr;
+
+    switch (token.type) {
+        case PlusOp:
+            ungetc('+', source);
+            return lvalue;
+        case MinusOp:
+            ungetc('-', source);
+            return lvalue;
+        case MulOp:
+            expr = (Expression *)malloc(sizeof(Expression));
+            (expr->v).type = MulNode;
+            (expr->v).val.op = Mul;
+            expr->leftOperand = lvalue;
+            expr->rightOperand = parseValue(source);
+            return parseRest2(source, expr);
+        case DivOp:
+            expr = (Expression *)malloc(sizeof(Expression));
+            (expr->v).type = DivNode;
+            (expr->v).val.op = Div;
+            expr->leftOperand = lvalue;
+            expr->rightOperand = parseValue(source);
+            return parseRest2(source, expr);
+        case Alphabet:
+            unGetString(source, token.tok);
+            return lvalue;
+        case CloseParenthesis:
+        case PrintOp:
+            ungetc(token.tok[0], source);
+            return lvalue;
+        case EOFsymbol:
+            return lvalue;
+        default:
+            printf("Syntax Error: Expect a numeric value or an identifier %s\n", token.tok);
+            exit(1);
+    }
+}
+
 Expression *parseTerm(FILE *source)
 {
     Expression *factor = parseValue(source);
-    return parseRest(source, factor);
+    return parseRest2(source, factor);
 }
 
 Expression *parseRest(FILE *source, Expression *lvalue)
@@ -118,19 +159,11 @@ Expression *parseRest(FILE *source, Expression *lvalue)
             expr->rightOperand = parseTerm(source);
             return parseRest(source, expr);
         case MulOp:
-            expr = (Expression *)malloc(sizeof(Expression));
-            (expr->v).type = MulNode;
-            (expr->v).val.op = Mul;
-            expr->leftOperand = lvalue;
-            expr->rightOperand = parseValue(source);
-            return parseRest(source, expr);
+            ungetc('*', source);
+            return lvalue;
         case DivOp:
-            expr = (Expression *)malloc(sizeof(Expression));
-            (expr->v).type = DivNode;
-            (expr->v).val.op = Div;
-            expr->leftOperand = lvalue;
-            expr->rightOperand = parseValue(source);
-            return parseRest(source, expr);
+            ungetc('/', source);
+            return lvalue;
         case Alphabet:
             unGetString(source, token.tok);
             return lvalue;
