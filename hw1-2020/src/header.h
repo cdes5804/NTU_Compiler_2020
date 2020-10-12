@@ -1,6 +1,7 @@
 #ifndef HEADER_H_INCLUDED
 #define HEADER_H_INCLUDED
 
+#include <stdbool.h>
 /******************************************************************************************************************************************
     All enumeration literals
        TokenType : Specify the type of the token scanner returns
@@ -146,5 +147,12 @@ Expression *parseExpr(FILE *source);
 Expression *parseRest(FILE *source, Expression *lvalue);
 Expression *parseTerm(FILE *source);
 Expression *parseParenthesis(FILE *source);
+bool isOperator(Expression *expr);
+bool isConst(Expression *expr);
+int arithmeticInt(int leftVal, int rightVal, Operation op);
+float arithmeticFloat(float leftVal, float rightVal, Operation op);
+Expression *foldConstant(Expression *expr);
+void fold(Statement *stmt);
+Statements *optimize(Statements *stmts);
 
 #endif // HEADER_H_INCLUDED
