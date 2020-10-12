@@ -58,7 +58,7 @@ float arithmeticFloat(float leftVal, float rightVal, Operation op)
             result = leftVal / rightVal;
             break;
         default:
-            fprintf(stderr, "Invalid operation in arithmeticInt.\n");
+            fprintf(stderr, "Invalid operation in arithmeticFloat.\n");
             exit(1);
     }
     return result;
