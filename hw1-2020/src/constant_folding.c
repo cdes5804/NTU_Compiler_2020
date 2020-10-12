@@ -90,8 +90,8 @@ Expression *foldConstant(Expression *expr)
             (value->v).type = IntConst;
             (value->v).val.ivalue = arithmeticInt(leftVal, rightVal, op);
         } else if (expr->type == Float) {
-            float leftVal = (expr->leftOperand->v).val.ivalue;
-            float rightVal = (expr->rightOperand->v).val.ivalue;
+            float leftVal = (expr->leftOperand->v).val.fvalue;
+            float rightVal = (expr->rightOperand->v).val.fvalue;
             Operation op = (expr->v).val.op;
             (value->v).type = FloatConst;
             (value->v).val.fvalue = arithmeticFloat(leftVal, rightVal, op);
