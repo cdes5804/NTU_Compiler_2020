@@ -39,10 +39,6 @@ test_cases = [
     },
     {
         'description': 'invalid syntax',
-        'input': 'i a\na = a//a\n'
-    },
-    {
-        'description': 'invalid syntax',
         'input': 'i a\np\n'
     },
 ]
