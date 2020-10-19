@@ -12,16 +12,8 @@ jobs:
     - name: make
       working-directory: ./hw1-2020/src
       run: |
-          make
           make debug
-
-jobs:
-    build:
-        runs-on: ubuntu-lastest
-
-    steps:
-    - name: checkout repo content
-      uses: actions/checkout@v2
+          make 
     - name: setup python
       uses: actions/setup-python@v2
       with:
