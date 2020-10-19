@@ -14,3 +14,20 @@ jobs:
       run: |
           make
           make debug
+
+jobs:
+    build:
+        runs-on: ubuntu-lastest
+
+    steps:
+    - name: checkout repo content
+      uses: actions/checkout@v2
+    - name: setup python
+      uses: actions/setup-python@v2
+      with:
+          python-version: 3.8
+    - name: execute py script
+      working-directory: ./hw1-2020
+      run: |
+          python3 test_syntax_error.py
+
