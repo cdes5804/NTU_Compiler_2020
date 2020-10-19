@@ -9,7 +9,7 @@ typedef struct {
 
 typedef struct {
     HashTableElement table[1<<16];
-} HashTable
+} HashTable;
 
 int __hashString(char *str)
 {
