@@ -16,8 +16,10 @@ void add_table(SymbolTable *table, char c, DataType t)
 {
     int index = (int)(c - 'a');
 
-    if (table->table[index] != Notype)
+    if (table->table[index] != Notype) {
         printf("Error : id %c has been declared\n", c);//error
+        exit(1);
+    }
     table->table[index] = t;
 }
 
