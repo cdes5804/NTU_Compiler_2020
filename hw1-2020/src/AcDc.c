@@ -34,6 +34,7 @@ int main(int argc, char *argv[])
         }
     } else {
         printf("Usage: %s source_file target_file\n", argv[0]);
+        exit(1);
     }
 
     return 0;
