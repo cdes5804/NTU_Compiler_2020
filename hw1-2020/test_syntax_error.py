@@ -41,11 +41,19 @@ test_cases = [
         'description': 'invalid syntax',
         'input': 'i a\np\n'
     },
+    {
+        'description': 'identifier not declared',
+        'input': 'a = 1\n'
+    },
+    {
+        'description': 'convert float to int',
+        'input': 'i a\na = 1.1\n'
+    },
 ]
 
 def print_test_case(test_case):
     print('>>>>>>>>>>>>>>>>>>>>')
-    print(test_case['descryption'])
+    print(test_case['description'])
     print('---------------------')
     print(test_case['input'])
     print('<<<<<<<<<<<<<<<<<<<<')
