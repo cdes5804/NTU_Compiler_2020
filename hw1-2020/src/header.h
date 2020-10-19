@@ -139,7 +139,7 @@ void fprint_op(FILE *target, ValueType op);
 void fprint_expr(FILE *target, Expression *expr);
 void gencode(Program prog, FILE * target);
 void print_expr(Expression *expr);
-void test_parser(FILE *source);
+Program test_parser(FILE *source);
 void getString(FILE *source, char c, char tok[]);
 void unGetString(FILE *source, char buf[]);
 char getId(char *str);

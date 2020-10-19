@@ -20,12 +20,17 @@ int main(int argc, char *argv[])
             printf("can't open the target file\n");
             exit(2);
         } else {
+#ifndef DEBUG
             program = parser(source);
             fclose(source);
             symtab = build(program);
             check(&program, &symtab);
             program.statements = optimize(program.statements);
             gencode(program, target);
+#else
+            program = test_parser(source);
+            gencode(program, target);
+#endif
         }
     } else {
         printf("Usage: %s source_file target_file\n", argv[0]);
