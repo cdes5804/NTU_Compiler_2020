@@ -9,7 +9,7 @@ test_cases = [
     {
         'description': 'reserved word f',
         'input': 'f f\n',
-        'result': 'success'
+        'result': 'error'
     },
     {
         'description': 'reserved word p',
