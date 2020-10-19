@@ -51,15 +51,24 @@ def print_test_case(test_case):
     print('<<<<<<<<<<<<<<<<<<<<')
 
 def main():
+    subprocess.run(['make'], cwd='./src/')
+    ok = 0
     for test_case in test_cases:
         with open('.tmp_input.ac', 'w') as f:
             f.write(test_case['input'])
-        proc = subprocess.run(['./src/AcDc', '.tmp_input.ac', '.tmp_output.dc'], text=True, capture_output=True)
+        proc = subprocess.run(['./src/AcDc', '.tmp_input.ac', '.tmp_output.dc'])
         if proc.returncode == 0:
             print_test_case(test_case)
+        else:
+            ok += 1
+
+    print('======= SUMMARY ========')
+    print(f'test cases: {ok}/{len(test_cases)} OK')
+    print('========================')
 
     os.remove('.tmp_input.ac')
     os.remove('.tmp_output.dc')
+    subprocess.run(['make', 'clean'], cwd='./src/')
 
 if __name__ == '__main__':
     main()
