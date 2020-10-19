@@ -11,7 +11,7 @@ void convertType(Expression * old, DataType type)
 {
     if (old->type == Float && type == Int) {
         printf("error : can't convert float to integer\n");
-        return;
+        exit(1);
     }
     if (old->type == Int && type == Float) {
         Expression *tmp = (Expression *)malloc(sizeof(Expression));
@@ -47,8 +47,10 @@ DataType generalize(Expression *left, Expression *right)
 DataType lookup_table(SymbolTable *table, char c)
 {
     int id = c - 'a';
-    if (table->table[id] != Int && table->table[id] != Float)
+    if (table->table[id] != Int && table->table[id] != Float) {
         printf("Error : identifier %c is not declared\n", c);//error
+        exit(1);
+    }
     return table->table[id];
 }
 
@@ -97,13 +99,17 @@ void checkstmt(Statement *stmt, SymbolTable * table)
         stmt->stmt.assign.type = lookup_table(table, assign.id);
         if (assign.expr->type == Float && stmt->stmt.assign.type == Int) {
             printf("error : can't convert float to integer\n");
+            exit(1);
         } else {
             convertType(assign.expr, stmt->stmt.assign.type);
         }
     } else if (stmt->type == Print) {
         printf("print : %c \n", stmt->stmt.variable);
         lookup_table(table, stmt->stmt.variable);
-    } else printf("error : statement error\n");//error
+    } else {
+        printf("error : statement error\n");//error
+        exit(1);
+    }
 }
 
 void check(Program *program, SymbolTable * table)
