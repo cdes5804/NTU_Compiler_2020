@@ -10,7 +10,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: make
-      working-directory: ./hw1-2020/src
+      working-directory: ./hw1/src
       run: |
           make debug
           make 
@@ -19,7 +19,7 @@ jobs:
       with:
           python-version: 3.8
     - name: execute py script
-      working-directory: ./hw1-2020
+      working-directory: ./hw1
       run: |
           python3 test_syntax_error.py
 
