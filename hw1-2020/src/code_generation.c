@@ -23,7 +23,7 @@ void fprint_op(FILE *target, ValueType op)
             break;
         default:
             fprintf(target, "Error in fprintf_op ValueType = %d\n", op);
-            break;
+            exit(1);
     }
 }
 
@@ -42,7 +42,7 @@ void fprint_expr( FILE *target, Expression *expr)
                 break;
             default:
                 fprintf(target, "Error In fprint_left_expr. (expr->v).type=%d\n", (expr->v).type);
-                break;
+                exit(1);
         }
     } else {
         fprint_expr(target, expr->leftOperand);
