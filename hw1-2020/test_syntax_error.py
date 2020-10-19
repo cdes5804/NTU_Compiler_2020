@@ -49,6 +49,18 @@ test_cases = [
         'description': 'convert float to int',
         'input': 'i a\na = 1.1\n'
     },
+    {
+        'description': 'invalid token',
+        'input': 'i a\na = 1;\n'
+    },
+    {
+        'description': 'floating number representation',
+        'input': 'f a\na = 1.\n'
+    },
+    {
+        'description': 'floating number representtion',
+        'input': 'f a\na = .0\n'
+    },
 ]
 
 def print_test_case(test_case):
@@ -64,7 +76,7 @@ def main():
     for test_case in test_cases:
         with open('.tmp_input.ac', 'w') as f:
             f.write(test_case['input'])
-        proc = subprocess.run(['./src/AcDc', '.tmp_input.ac', '.tmp_output.dc'])
+        proc = subprocess.run(['./src/AcDc', '.tmp_input.ac', '.tmp_output.dc'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if proc.returncode == 0:
             print_test_case(test_case)
         else:
