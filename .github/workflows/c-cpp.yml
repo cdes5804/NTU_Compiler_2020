@@ -11,4 +11,6 @@ jobs:
     - uses: actions/checkout@v2
     - name: make
       working-directory: ./hw1-2020/src
-      run: make
+      run: |
+          make
+          make debug
