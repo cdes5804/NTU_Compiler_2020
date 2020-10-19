@@ -46,13 +46,75 @@ void print_expr(Expression *expr)
     }
 }
 
-void test_parser(FILE *source)
+void pretty_print_expr(Expression *expr)
+{
+    if (expr == NULL)
+        return;
+    switch((expr->v).type) {
+        case Identifier:
+            pretty_print_expr(expr->leftOperand);
+            printf("%c ", (expr->v).val.id);
+            pretty_print_expr(expr->rightOperand);
+            break;
+        case IntConst:
+            pretty_print_expr(expr->leftOperand);
+            printf("%d ", (expr->v).val.ivalue);
+            pretty_print_expr(expr->rightOperand);
+            break;
+        case FloatConst:
+            pretty_print_expr(expr->leftOperand);
+            printf("%f ", (expr->v).val.fvalue);
+            pretty_print_expr(expr->rightOperand);
+            break;
+        case PlusNode:
+            printf("( ");
+            pretty_print_expr(expr->leftOperand);
+            printf("+ ");
+            pretty_print_expr(expr->rightOperand);
+            printf(") ");
+            break;
+        case MinusNode:
+            printf("( ");
+            pretty_print_expr(expr->leftOperand);
+            printf("- ");
+            pretty_print_expr(expr->rightOperand);
+            printf(") ");
+            break;
+        case MulNode:
+            printf("( ");
+            pretty_print_expr(expr->leftOperand);
+            printf("* ");
+            pretty_print_expr(expr->rightOperand);
+            printf(") ");
+            break;
+        case DivNode:
+            printf("( ");
+            pretty_print_expr(expr->leftOperand);
+            printf("/ ");
+            pretty_print_expr(expr->rightOperand);
+            printf(") ");
+            break;
+        case IntToFloatConvertNode:
+            printf("(float)");
+            pretty_print_expr(expr->leftOperand);
+            break;
+        default:
+            printf("error ");
+            break;
+    }
+}
+
+Program test_parser(FILE *source)
 {
     Declarations *decls;
     Statements *stmts;
     Declaration decl;
     Statement stmt;
     Program program = parser(source);
+    fclose(source);
+    SymbolTable symtab = build(program);
+    check(&program, &symtab);
+    program.statements = optimize(program.statements);
 
     decls = program.declarations;
 
@@ -62,7 +124,7 @@ void test_parser(FILE *source)
             printf("i ");
         if(decl.type == Float)
             printf("f ");
-        printf("%c ",decl.name);
+        printf("%c\n",decl.name);
         decls = decls->rest;
     }
 
@@ -71,12 +133,13 @@ void test_parser(FILE *source)
     while (stmts != NULL) {
         stmt = stmts->first;
         if (stmt.type == Print) {
-            printf("p %c ", stmt.stmt.variable);
+            printf("p %c \n", stmt.stmt.variable);
         }
 
         if (stmt.type == Assignment) {
             printf("%c = ", stmt.stmt.assign.id);
-            print_expr(stmt.stmt.assign.expr);
+            pretty_print_expr(stmt.stmt.assign.expr);
+            putchar('\n');
         }
         stmts = stmts->rest;
     }
