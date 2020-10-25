@@ -67,12 +67,12 @@ WS                  [ \t]+
 Int_constant        {digit}+
 
 /* Explanation of floating-point literal regex
-({digit}+)(e(+|-)?{digit}+):               : 12e5 or 12e+5 or 12e-5
-{digit}+(\.{digit}+)(e(+|-)?{digit}+)?:    : 12.5 or 12.5e5 or 12.5e+5 or 12.5e-5
-({digit}+)?(\.{digit}+)(e(+|-)?{digit}+)?: : .5 or .5e5 or .5e+5 or .5e-5
-({digit}+)\.(e(+|-)?{digit}+)?             : 1. or 1.e5 or 1.e+5 or 1.e-5
+({digit}+)([eE][+-]?{digit}+)                : 12e5 or 12e+5 or 12e-5
+{digit}+(\.{digit}+)([eE][+-]?{digit}+)?     : 12.5 or 12.5e5 or 12.5e+5 or 12.5e-5
+({digit}+)?(\.{digit}+)([eE][+-]?{digit}+)?  : .5 or .5e5 or .5e+5 or .5e-5
+({digit}+)\.([eE][+-]?{digit}+)?             : 1. or 1.e5 or 1.e+5 or 1.e-5
 */
-Float_constant      (({digit}+)(e(+|-)?{digit}+))|({digit}+(\.{digit}+)(e(+|-)?{digit}+)?)|(({digit}+)?(\.{digit}+)(e(+|-)?{digit}+)?)|(({digit}+)\.(e(+|-)?{digit}+)?)
+Float_constant      (({digit}+)([eE][+-]?{digit}+))|({digit}+(\.{digit}+)([eE][+-]?{digit}+)?)|(({digit}+)?(\.{digit}+)([eE][+-]?{digit}+)?)|(({digit}+)\.([eE][+-]?{digit}+)?)
 
 /* reference: https://stackoverflow.com/questions/2039795/regular-expression-for-a-string-literal-in-flex-lex */
 String_constant     \"(\\.|[^"\\])*\"
@@ -135,13 +135,13 @@ error                .
 
 %%
 
-main(int argc, char **argv)
+int main(int argc, char **argv)
 {
- argc--; ++argv;
-   if (argc > 0)
-      yyin = fopen(argv[0], "r");
-   else
-      yyin = stdin;
-   yylex();
-   printSymTab();
+    argc--; ++argv;
+    if (argc > 0)
+        yyin = fopen(argv[0], "r");
+    else
+        yyin = stdin;
+    yylex();
+    printSymTab();
 }
