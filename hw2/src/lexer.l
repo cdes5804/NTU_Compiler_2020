@@ -47,15 +47,15 @@ void printSymTab();
 #define OP_ASSIGN       53
 
 /* separators */
-#define SP_LBRACE       60
-#define SP_RBRACE       61
-#define SP_LBRACKET     62
-#define SP_RBRACKET     63
-#define SP_LPAREN       64
-#define SP_RPAREN       65
-#define SP_SEMICOL      66
-#define SP_COMMA        67
-#define SP_DOT          68
+#define SEP_LBRACE      60
+#define SEP_RBRACE      61
+#define SEP_LBRACKET    62
+#define SEP_RBRACKET    63
+#define SEP_LPAREN      64
+#define SEP_RPAREN      65
+#define SEP_SEMICOL     66
+#define SEP_COMMA       67
+#define SEP_DOT         68
 
 #define ERROR           100
 %}
@@ -96,15 +96,15 @@ OP_assign           "="
 
 newline             "\n"
 
-DL_lparen           "("
-DL_rparen           ")"
-DL_lbracket         "["
-DL_rbracket         "]"
-DL_lbrace           "{"
-DL_rbrace           "}"
-DL_comma            ","
-DL_semicol          ";"
-DL_dot              "."
+SEP_lparen          "("
+SEP_rparen          ")"
+SEP_lbracket        "["
+SEP_rbracket        "]"
+SEP_lbrace          "{"
+SEP_rbrace          "}"
+SEP_comma           ","
+SEP_semicol         ";"
+SEP_dot             "."
 
 /* Other separators appear here */
 
@@ -114,21 +114,21 @@ error                .
 
 {WS}            {}
 {ID}            { 
-			ptr = lookup(yytext);
-			if (ptr == NULL)
-			     insertID(yytext);	
-			else 
-			     ptr->counter++;
-		}
+                    ptr = lookup(yytext);
+                    if (ptr == NULL)
+                        insertID(yytext);
+                    else
+                        ptr->counter++;
+                }
 
 {OP_assign}     /* return OP_ASSIGN; */ 
 {OP_or}         /* return OP_OR; */
-{DL_lparen}     /* return MK_LPAREN; */
-{DL_rparen}     /* return MK_RPAREN; */
-{DL_lbrace}     /* return MK_LBRACE; */
-{DL_rbrace}     /* return MK_RBRACE; */
-{DL_comma}      {}
-{DL_semicol}    {}
+{SEP_lparen}     /* return MK_LPAREN; */
+{SEP_rparen}     /* return MK_RPAREN; */
+{SEP_lbrace}     /* return MK_LBRACE; */
+{SEP_rbrace}     /* return MK_RBRACE; */
+{SEP_comma}      {}
+{SEP_semicol}    {}
 {newline}       linenumber += 1;
 {error}         printf("ERR \n");/* return ERROR; */
 
@@ -145,4 +145,3 @@ main(int argc, char **argv)
    yylex();
    printSymTab();
 }
-
