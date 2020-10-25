@@ -2,20 +2,61 @@
 %{
 #include <stdio.h>
 #include "header.h" 
-int linenumber;
-symtab * lookup();
-symtab * ptr;
-void     insertID();
-void 	 printSymTab();
-/* You need to define for all tokens in C--, here are some examples */
-#define INT		10
-#define FLOAT 		11 
-#define OP_ASSIGN 	12 
-#define OP_OR 		13 
-#define MK_LPAREN 	14 
-#define MK_RPAREN 	15 
-#define ERROR 		100 
 
+int linenumber;
+symtab* lookup();
+symtab* ptr;
+void insertID();
+void printSymTab();
+
+/* You need to define for all tokens in C--, here are some examples */
+
+/* reserved words */
+#define RW_RETURN       10
+#define RW_TYPEDEF      11
+#define RW_IF           12
+#define RW_ELSE         13
+#define RW_INT	         14
+#define RW_FLOAT        15
+#define RW_FOR          16
+#define RW_VOID         17
+#define RW_WHILE        18
+
+/* constants */
+#define CONST_INT       20
+#define CONST_FLOAT     21
+#define CONST_STR       22
+
+/* identifiers */
+#define ID              30
+
+/* symbols and operators */
+#define OP_ADD          40
+#define OP_SUB          41
+#define OP_DIV          42
+#define OP_MUL          43
+#define OP_LT           44
+#define OP_GT           45
+#define OP_GEQ          46
+#define OP_LEQ          47
+#define OP_NEQ          48
+#define OP_EQ           49
+#define OP_OR           50
+#define OP_AND          51
+#define OP_NEG          52
+
+/* separators */
+#define SP_LBRACE       60
+#define SP_RBRACE       61
+#define SP_LBRACKET     62
+#define SP_RBRACKET     63
+#define SP_LPAREN       64
+#define SP_RPAREN       65
+#define SP_SEMICOLON    66
+#define SP_COMMA        67
+#define SP_DOT          68
+
+#define ERROR           100
 %}
 
 letter   [A-Za-z]
