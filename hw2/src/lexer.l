@@ -44,6 +44,7 @@ void printSymTab();
 #define OP_OR           50
 #define OP_AND          51
 #define OP_NEG          52
+#define OP_ASSIGN       53
 
 /* separators */
 #define SP_LBRACE       60
@@ -52,50 +53,66 @@ void printSymTab();
 #define SP_RBRACKET     63
 #define SP_LPAREN       64
 #define SP_RPAREN       65
-#define SP_SEMICOLON    66
+#define SP_SEMICOL      66
 #define SP_COMMA        67
 #define SP_DOT          68
 
 #define ERROR           100
 %}
 
-letter   [A-Za-z]
-digit    [0-9]
-ID	 {letter}({letter}|{digit}|"_")*
-WS	 [ \t]+
-Int_constant {digit}+
+letter              [A-Za-z]
+digit               [0-9]
+ID                  {letter}({letter}|{digit}|"_")*
+WS                  [ \t]+
+Int_constant        {digit}+
 
-/* You need to define the following RE's 
-Float_constant
-String_constant
-comment
+/* Explanation of floating-point literal regex
+({digit}+)(e(+|-)?{digit}+):               : 12e5 or 12e+5 or 12e-5
+{digit}+(\.{digit}+)(e(+|-)?{digit}+)?:    : 12.5 or 12.5e5 or 12.5e+5 or 12.5e-5
+({digit}+)?(\.{digit}+)(e(+|-)?{digit}+)?: : .5 or .5e5 or .5e+5 or .5e-5
+({digit}+)\.(e(+|-)?{digit}+)?             : 1. or 1.e5 or 1.e+5 or 1.e-5
 */
+Float_constant      (({digit}+)(e(+|-)?{digit}+))|({digit}+(\.{digit}+)(e(+|-)?{digit}+)?)|(({digit}+)?(\.{digit}+)(e(+|-)?{digit}+)?)|(({digit}+)\.(e(+|-)?{digit}+)?)
 
-OP_assign        "="
-OP_or   "||"
+/* reference: https://stackoverflow.com/questions/2039795/regular-expression-for-a-string-literal-in-flex-lex */
+String_constant     \"(\\.|[^"\\])*\"
 
-/* Other operators appear here */ 
+comment             \/\*([^*]|(\*+[^/*]))*\**\*\/
 
+OP_add              "+"
+OP_sub              "-"
+OP_div              "/"
+OP_mul              "*"
+OP_lt               "<"
+OP_gt               ">"
+OP_geq              ">="
+OP_leq              "<="
+OP_neq              "!="
+OP_eq               "=="
+OP_or               "||"
+OP_and              "&&"
+OP_neg              "!"
+OP_assign           "="
 
-newline  "\n"
+newline             "\n"
 
-DL_lparen "("
-DL_rparen ")"
-DL_lbrace "{"
-DL_rbrace "}"
-DL_comma  ","
-DL_semicol ";"
-DL_dot  "."
+DL_lparen           "("
+DL_rparen           ")"
+DL_lbracket         "["
+DL_rbracket         "]"
+DL_lbrace           "{"
+DL_rbrace           "}"
+DL_comma            ","
+DL_semicol          ";"
+DL_dot              "."
 
 /* Other separators appear here */
 
-error    .
+error                .
 
 %%
 
 {WS}            {}
-{RWInt}         {/* return INT; */ }
-{RWFloat}       {/* return FLOAT; */}
 {ID}            { 
 			ptr = lookup(yytext);
 			if (ptr == NULL)
