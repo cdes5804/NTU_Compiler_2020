@@ -1,14 +1,15 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<ctype.h>
-#include<math.h>
-#include"header.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <math.h>
+#include "header.h"
 
-#define TABLE_SIZE	512
+#define TABLE_SIZE 512
 
 symtab* hash_table[TABLE_SIZE];
-extern int linenumber;
+extern int line_number;
+int identifier_number;
 
 int HASH(char* str)
 {
@@ -25,12 +26,10 @@ int HASH(char* str)
 
 symtab* lookup(char *name)
 {
-	int hash_key;
-	symtab* symptr;
 	if (!name)
 		return NULL;
-	hash_key = HASH(name);
-	symptr = hash_table[hash_key];
+	int hash_key = HASH(name);
+	symtab* symptr = hash_table[hash_key];
 
 	while (symptr) {
 		if (!(strcmp(name, symptr->lexeme)))
@@ -43,12 +42,9 @@ symtab* lookup(char *name)
 
 void insertID(char* name)
 {
-	int hash_key;
-	symtab* ptr;
+	int hash_key = HASH(name);
+	symtab* ptr = hash_table[hash_key];
 	symtab* symptr = (symtab*)malloc(sizeof(symtab));	
-	
-	hash_key = HASH(name);
-	ptr = hash_table[hash_key];
 	
 	if (ptr == NULL) {
 		/*first entry for this hash_key*/
@@ -63,8 +59,9 @@ void insertID(char* name)
 	}
 	
 	strcpy(symptr->lexeme, name);
-	symptr->line = linenumber;
+	symptr->line = line_number;
 	symptr->counter = 1;
+    identifier_number += 1;
 }
 
 void printSym(symtab* ptr) 
@@ -76,13 +73,39 @@ void printSym(symtab* ptr)
 void printSymTab()
 {
     printf("----- Symbol Table ---------\n");
-    for (int i = 0; i < TABLE_SIZE; i++) {
-        symtab* symptr;
-        symptr = hash_table[i];
+    for (int i = 0; i < TABLE_SIZE; ++i) {
+        symtab* symptr = hash_table[i];
         while (symptr != NULL) {
             printf("====>  index = %d \n", i);
             printSym(symptr);
             symptr = symptr->front;
         }
     }
+}
+
+int symtab_cmp(const void* param1, const void* param2)
+{
+    symtab* left = *(symtab**)param1;
+    symtab* right = *(symtab**)param2;
+    return strcmp(left->lexeme, right->lexeme);
+}
+
+void printIdentifier()
+{
+    symtab** arr = (symtab**)malloc(sizeof(symtab*) * identifier_number);
+    int index = 0;
+    if (!arr) {
+        fprintf(stderr, "No enough memory to contain the identifiers!\n");
+        exit(1);
+    }
+    for (int i = 0; i < TABLE_SIZE; ++i) {
+        symtab* symptr = hash_table[i];
+        while (symptr != NULL) {
+            arr[index++] = symptr;
+            symptr = symptr->front;
+        }
+    }
+    qsort(arr, identifier_number, sizeof(symtab*), symtab_cmp);
+    for (int i = 0; i < identifier_number; ++i)
+        printf("%s %d\n", arr[i]->lexeme, arr[i]->counter);
 }
