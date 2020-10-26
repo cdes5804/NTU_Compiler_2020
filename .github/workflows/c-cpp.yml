@@ -9,17 +9,24 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: make
-      working-directory: ./hw1/src
-      run: |
-          make debug
-          make 
     - name: setup python
       uses: actions/setup-python@v2
       with:
           python-version: 3.8
-    - name: execute py script
+    - name: make hw1
+      working-directory: ./hw1/src
+      run: |
+          make debug
+          make 
+    - name: test hw1
       working-directory: ./hw1
       run: |
           python3 test_syntax_error.py
+    - name: make hw2
+      working-directory: ./hw2/src
+      run: make
+    - name: test hw2
+      working-directory: ./hw2
+      run: |
+          python3 test.py
 

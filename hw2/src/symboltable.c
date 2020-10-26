@@ -6,10 +6,13 @@
 #include "header.h"
 
 #define TABLE_SIZE 512
+#define RESERVED_SIZE 9
 
 symtab* hash_table[TABLE_SIZE];
 extern int line_number;
 int identifier_number;
+
+char reserved_words[RESERVED_SIZE][32] = {"return", "typedef", "if", "else", "int", "float", "for", "void", "while"};
 
 int HASH(char* str)
 {
@@ -37,6 +40,15 @@ symtab* lookup(char *name)
 		symptr = symptr->front;
 	}
 	return NULL;
+}
+
+int is_reserved_word(char* name)
+{
+    for (int i = 0; i < RESERVED_SIZE; ++i) {
+        if (!strcmp(name, reserved_words[i]))
+            return 1;
+    }
+    return 0;
 }
 
 

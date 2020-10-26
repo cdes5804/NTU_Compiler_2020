@@ -7,6 +7,7 @@
 int line_number;
 symtab* lookup();
 symtab* ptr;
+int is_reserved_word();
 void insertID();
 void printSymTab();
 void printIdentifier();
@@ -113,29 +114,49 @@ SEP_dot             "."
 error                .
 
 %%
+{ID}                {
+                        if (!is_reserved_word(yytext)) {
+                            ptr = lookup(yytext);
+                            if (ptr == NULL)
+                                insertID(yytext);
+                            else
+                                ptr->counter++;
+                        }
+                    }
 
-{WS}            {}
-{ID}            { 
-                    ptr = lookup(yytext);
-                    if (ptr == NULL)
-                        insertID(yytext);
-                    else
-                        ptr->counter++;
-                }
-
-{OP_assign}     {}  
-{OP_or}         {} 
-{SEP_lparen}    {} 
-{SEP_rparen}    {} 
-{SEP_lbrace}    {} 
-{SEP_rbrace}    {} 
-{SEP_comma}     {}
-{SEP_semicol}   {}
-{comment}       {printf("%s\n", yytext);}
-{newline}       {line_number += 1;}
-{error}         {
-                    printf("Unrecognized token: %s\n", yytext);
-                }
+{WS}                {}
+{Int_constant}      {}    
+{Float_constant}    {}
+{String_constant}   {}
+{comment}           {printf("%s\n", yytext);}
+{OP_add}            {}
+{OP_sub}            {}
+{OP_div}            {}
+{OP_mul}            {}
+{OP_lt}             {}
+{OP_gt}             {}
+{OP_geq}            {}
+{OP_leq}            {}
+{OP_neq}            {}
+{OP_eq}             {}
+{OP_or}             {}
+{OP_and}            {}
+{OP_neg}            {}
+{OP_assign}         {}
+{newline}           {line_number += 1;}
+{SEP_lparen}        {} 
+{SEP_rparen}        {} 
+{SEP_lbracket}      {} 
+{SEP_rbracket}      {} 
+{SEP_lbrace}        {} 
+{SEP_rbrace}        {} 
+{SEP_comma}         {}
+{SEP_semicol}       {}
+{SEP_dot}           {}
+{error}             {
+                        printf("Unrecognized token: %s\n", yytext);
+                        exit(1);
+                    }
 
 
 %%

@@ -1,0 +1,5 @@
+int main()
+{
+    int number = 2^10;
+    int (number == 1024);
+}
