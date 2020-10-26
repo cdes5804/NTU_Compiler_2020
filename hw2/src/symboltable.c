@@ -16,30 +16,30 @@ char reserved_words[RESERVED_SIZE][32] = {"return", "typedef", "if", "else", "in
 
 int HASH(char* str)
 {
-	int idx = 0;
-	while (*str) {
-		idx = idx << 1;
-		idx += *str;
-		str++;
-	}	
-	return (idx & (TABLE_SIZE - 1));
+    int idx = 0;
+    while (*str) {
+        idx = idx << 1;
+        idx += *str;
+        str++;
+    }   
+    return (idx & (TABLE_SIZE - 1));
 }
 
 /*returns the symbol table entry if found else NULL*/
 
 symtab* lookup(char *name)
 {
-	if (!name)
-		return NULL;
-	int hash_key = HASH(name);
-	symtab* symptr = hash_table[hash_key];
+    if (!name)
+        return NULL;
+    int hash_key = HASH(name);
+    symtab* symptr = hash_table[hash_key];
 
-	while (symptr) {
-		if (!(strcmp(name, symptr->lexeme)))
-			return symptr;
-		symptr = symptr->front;
-	}
-	return NULL;
+    while (symptr) {
+        if (!(strcmp(name, symptr->lexeme)))
+            return symptr;
+        symptr = symptr->front;
+    }
+    return NULL;
 }
 
 int is_reserved_word(char* name)
@@ -54,25 +54,25 @@ int is_reserved_word(char* name)
 
 void insertID(char* name)
 {
-	int hash_key = HASH(name);
-	symtab* ptr = hash_table[hash_key];
-	symtab* symptr = (symtab*)malloc(sizeof(symtab));	
-	
-	if (ptr == NULL) {
-		/*first entry for this hash_key*/
-		hash_table[hash_key] = symptr;
-		symptr->front = NULL;
-		symptr->back = symptr;
-	} else {
-		symptr->front = ptr;
-		ptr->back = symptr;
-		symptr->back = symptr;
-		hash_table[hash_key] = symptr;	
-	}
-	
-	strcpy(symptr->lexeme, name);
-	symptr->line = line_number;
-	symptr->counter = 1;
+    int hash_key = HASH(name);
+    symtab* ptr = hash_table[hash_key];
+    symtab* symptr = (symtab*)malloc(sizeof(symtab));   
+    
+    if (ptr == NULL) {
+        /*first entry for this hash_key*/
+        hash_table[hash_key] = symptr;
+        symptr->front = NULL;
+        symptr->back = symptr;
+    } else {
+        symptr->front = ptr;
+        ptr->back = symptr;
+        symptr->back = symptr;
+        hash_table[hash_key] = symptr;  
+    }
+    
+    strcpy(symptr->lexeme, name);
+    symptr->line = line_number;
+    symptr->counter = 1;
     identifier_number += 1;
 }
 

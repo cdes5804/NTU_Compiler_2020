@@ -19,7 +19,7 @@ void printIdentifier();
 #define RW_TYPEDEF      11
 #define RW_IF           12
 #define RW_ELSE         13
-#define RW_INT	        14
+#define RW_INT          14
 #define RW_FLOAT        15
 #define RW_FOR          16
 #define RW_VOID         17
