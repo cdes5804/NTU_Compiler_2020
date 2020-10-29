@@ -7,5 +7,6 @@ struct symtab {
 };
 
 typedef struct symtab symtab;
+int is_reserved_word(char* name);
 symtab* lookup(char *name);
-void insert(char* name);
+void insertID(char* name);

@@ -1,13 +1,16 @@
 %option noyywrap 
 %{
 #include <stdio.h>
+#include <stdlib.h>
 #include "header.h" 
 
-int linenumber;
+int line_number;
 symtab* lookup();
 symtab* ptr;
+int is_reserved_word();
 void insertID();
 void printSymTab();
+void printIdentifier();
 
 /* You need to define for all tokens in C--, here are some examples */
 
@@ -16,7 +19,7 @@ void printSymTab();
 #define RW_TYPEDEF      11
 #define RW_IF           12
 #define RW_ELSE         13
-#define RW_INT	         14
+#define RW_INT          14
 #define RW_FLOAT        15
 #define RW_FOR          16
 #define RW_VOID         17
@@ -77,7 +80,7 @@ Float_constant      (({digit}+)([eE][+-]?{digit}+))|({digit}+(\.{digit}+)([eE][+
 /* reference: https://stackoverflow.com/questions/2039795/regular-expression-for-a-string-literal-in-flex-lex */
 String_constant     \"(\\.|[^"\\])*\"
 
-comment             \/\*([^*]|(\*+[^/*]))*\**\*\/
+comment             \/\*([^*]|(\*+([^*/])))*\*+\/
 
 OP_add              "+"
 OP_sub              "-"
@@ -111,26 +114,49 @@ SEP_dot             "."
 error                .
 
 %%
+{ID}                {
+                        if (!is_reserved_word(yytext)) {
+                            ptr = lookup(yytext);
+                            if (ptr == NULL)
+                                insertID(yytext);
+                            else
+                                ptr->counter++;
+                        }
+                    }
 
-{WS}            {}
-{ID}            { 
-                    ptr = lookup(yytext);
-                    if (ptr == NULL)
-                        insertID(yytext);
-                    else
-                        ptr->counter++;
-                }
-
-{OP_assign}     /* return OP_ASSIGN; */ 
-{OP_or}         /* return OP_OR; */
-{SEP_lparen}     /* return MK_LPAREN; */
-{SEP_rparen}     /* return MK_RPAREN; */
-{SEP_lbrace}     /* return MK_LBRACE; */
-{SEP_rbrace}     /* return MK_RBRACE; */
-{SEP_comma}      {}
-{SEP_semicol}    {}
-{newline}       linenumber += 1;
-{error}         printf("ERR \n");/* return ERROR; */
+{WS}                {}
+{Int_constant}      {}    
+{Float_constant}    {}
+{String_constant}   {}
+{comment}           {printf("%s\n", yytext);}
+{OP_add}            {}
+{OP_sub}            {}
+{OP_div}            {}
+{OP_mul}            {}
+{OP_lt}             {}
+{OP_gt}             {}
+{OP_geq}            {}
+{OP_leq}            {}
+{OP_neq}            {}
+{OP_eq}             {}
+{OP_or}             {}
+{OP_and}            {}
+{OP_neg}            {}
+{OP_assign}         {}
+{newline}           {line_number += 1;}
+{SEP_lparen}        {} 
+{SEP_rparen}        {} 
+{SEP_lbracket}      {} 
+{SEP_rbracket}      {} 
+{SEP_lbrace}        {} 
+{SEP_rbrace}        {} 
+{SEP_comma}         {}
+{SEP_semicol}       {}
+{SEP_dot}           {}
+{error}             {
+                        printf("Unrecognized token: %s\n", yytext);
+                        exit(1);
+                    }
 
 
 %%
@@ -143,5 +169,6 @@ int main(int argc, char **argv)
     else
         yyin = stdin;
     yylex();
-    printSymTab();
+    printIdentifier();
+    return 0;
 }
