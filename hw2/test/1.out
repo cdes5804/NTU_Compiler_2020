@@ -3,14 +3,16 @@
 	comment
 	*/
 /* 3: this is /* the end ***/
-a 3
-b 2
-c 3
-d 4
-e 1
-f 2
-func 2
-g 2
-main 3
-read 1
-write 1
+
+Frequency of identifiers:
+a                                3
+b                                2
+c                                3
+d                                4
+e                                1
+f                                2
+func                             2
+g                                2
+main                             3
+read                             1
+write                            1
