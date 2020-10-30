@@ -118,6 +118,7 @@ void printIdentifier()
         }
     }
     qsort(arr, identifier_number, sizeof(symtab*), symtab_cmp);
+    printf("Frequency of identifiers:\n");
     for (int i = 0; i < identifier_number; ++i)
-        printf("%s %d\n", arr[i]->lexeme, arr[i]->counter);
+        printf("%-33s%d\n", arr[i]->lexeme, arr[i]->counter);
 }
