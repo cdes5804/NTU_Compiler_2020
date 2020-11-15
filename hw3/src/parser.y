@@ -805,7 +805,7 @@ var_ref		: ID
                 {
                     /*TODO*/
                     $$ = makeIDNode($1, ARRAY_ID);
-                    makeChild($$, $1);
+                    makeChild($$, $2);
                 }
             ;
 
