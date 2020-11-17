@@ -363,7 +363,7 @@ id_list		: ID
             | ID dim_decl
                 {
                     /*TODO*/
-                    $$ = makeChild(makeIDNode(ID, ARRAY_ID), $2);
+                    $$ = makeChild(makeIDNode($1, ARRAY_ID), $2);
                 }
 		;
 dim_decl	: MK_LB cexpr MK_RB 
