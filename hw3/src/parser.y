@@ -524,7 +524,6 @@ stmt		: MK_LBRACE block MK_RBRACE
             | RETURN MK_SEMICOLON  
                 {
                     /*TODO*/
-                    /*NOT SPECIFIED*/
                     $$ = makeStmtNode(RETURN_STMT);
                     makeChild($$, Allocate(NUL_NODE));
                 }
