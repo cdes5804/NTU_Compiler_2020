@@ -477,7 +477,7 @@ stmt		: MK_LBRACE block MK_RBRACE
                     $$ = $2;
                 }
             /*TODO: | While Statement */
-            | WHILE MK_LPAREN relop_expr_list MK_RPAREN stmt
+            | WHILE MK_LPAREN relop_expr MK_RPAREN stmt
                 {
                     /*TODO*/
                     $$ = makeStmtNode(WHILE_STMT);
@@ -496,14 +496,14 @@ stmt		: MK_LBRACE block MK_RBRACE
                     makeFamily($$, 2, $1, $3);
                 }
             /*TODO: | If Statement */
-            | IF MK_LPAREN relop_expr_list MK_RPAREN stmt
+            | IF MK_LPAREN relop_expr MK_RPAREN stmt
                 {
                     /*TODO*/
                     $$ = makeStmtNode(IF_STMT);
                     makeFamily($$, 3, $3, $5, Allocate(NUL_NODE));
                 }
             /*TODO: | If then else */
-            | IF MK_LPAREN relop_expr_list MK_RPAREN stmt ELSE stmt
+            | IF MK_LPAREN relop_expr MK_RPAREN stmt ELSE stmt
                 {
                     /*TODO*/
                     $$ = makeStmtNode(IF_STMT);
