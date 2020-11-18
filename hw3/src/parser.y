@@ -267,7 +267,7 @@ block           : decl_list stmt_list
                         $$ = Allocate(BLOCK_NODE);
                         AST_NODE *decl_list_node = makeChild(Allocate(VARIABLE_DECL_LIST_NODE), $1);
                         AST_NODE *stmt_list_node = makeChild(Allocate(STMT_LIST_NODE), $2);
-                        makeChild($$, makeSibling(decl_list_node, stmt_list_node));
+                        makeFamily($$, 2, decl_list_node, stmt_list_node);
                     }
                 | stmt_list  
                     {
@@ -357,8 +357,8 @@ id_list		: ID
             | id_list MK_COMMA ID dim_decl
                 {
                     /*TODO*/
-                    AST_NODE *tmp = makeChild(makeIDNode($3, ARRAY_ID), $4);
-                    $$ = makeSibling($1, tmp);
+                    AST_NODE *dim_decl_node = makeChild(makeIDNode($3, ARRAY_ID), $4);
+                    $$ = makeSibling($1, dim_decl_node);
                 }
             | ID dim_decl
                 {
