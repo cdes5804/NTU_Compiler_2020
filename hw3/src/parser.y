@@ -202,6 +202,14 @@ function_decl	: type ID MK_LPAREN param_list MK_RPAREN MK_LBRACE block MK_RBRACE
                         makeChild(parameterList, $4);
                         makeFamily($$, 4, makeIDNode("void", NORMAL_ID), makeIDNode($2, NORMAL_ID), parameterList, $7);
                     }
+                | ID ID MK_LPAREN param_list MK_RPAREN MK_LBRACE block MK_RBRACE
+                    {
+                        /*TODO*/
+                        $$ = makeDeclNode(FUNCTION_DECL);
+                        AST_NODE* parameterList = Allocate(PARAM_LIST_NODE);
+                        makeChild(parameterList, $4);
+                        makeFamily($$, 4, makeIDNode($1, NORMAL_ID), makeIDNode($2, NORMAL_ID), parameterList, $7);
+                    }
                 | type ID MK_LPAREN  MK_RPAREN MK_LBRACE block MK_RBRACE 
                     {
                         $$ = makeDeclNode(FUNCTION_DECL);
@@ -214,7 +222,14 @@ function_decl	: type ID MK_LPAREN param_list MK_RPAREN MK_LBRACE block MK_RBRACE
                         $$ = makeDeclNode(FUNCTION_DECL);
                         AST_NODE* emptyParameterList = Allocate(PARAM_LIST_NODE);
                         makeFamily($$, 4, makeIDNode("void", NORMAL_ID), makeIDNode($2, NORMAL_ID), emptyParameterList, $6);
-                    } 
+                    }
+                | ID ID MK_LPAREN MK_RPAREN MK_LBRACE block MK_RBRACE
+                    {
+                        /*TODO*/
+                        $$ = makeDeclNode(FUNCTION_DECL);
+                        AST_NODE* emptyParameterList = Allocate(PARAM_LIST_NODE);
+                        makeFamily($$, 4, makeIDNode($1, NORMAL_ID), makeIDNode($2, NORMAL_ID), emptyParameterList, $6);
+                    }
                 ;
 
 param_list	: param_list MK_COMMA  param 
@@ -238,6 +253,18 @@ param		: type ID
                     /*TODO*/
                     $$ = makeDeclNode(FUNCTION_PARAMETER_DECL);
                     makeFamily($$, 2, $1, makeChild(makeIDNode($2, ARRAY_ID), $3));
+                }
+            | ID ID
+                {
+                    /*TODO*/
+                    $$ = makeDeclNode(FUNCTION_PARAMETER_DECL);
+                    makeFamily($$, 2, makeIDNode($1, NORMAL_ID), makeIDNode($2, NORMAL_ID));
+                }
+            | ID ID dim_fn
+                {
+                    /*TODO*/
+                    $$ = makeDeclNode(FUNCTION_PARAMETER_DECL);
+                    makeFamily($$, 2, makeIDNode($1, NORMAL_ID), makeChild(makeIDNode($2, ARRAY_ID), $3));
                 }
             ;
 dim_fn		: MK_LB expr_null MK_RB 
@@ -319,6 +346,12 @@ type_decl 	: TYPEDEF type id_list MK_SEMICOLON
                     $$ = makeDeclNode(TYPE_DECL);
                     makeFamily($$, 2, makeIDNode("void", NORMAL_ID), $3);
                 }
+            | TYPEDEF ID id_list MK_SEMICOLON
+                {
+                    /*TODO*/
+                    $$ = makeDeclNode(TYPE_DECL);
+                    makeFamily($$, 2, makeIDNode($2, NORMAL_ID), $3);
+                }
             ;
 
 var_decl	: type init_id_list MK_SEMICOLON 
@@ -327,7 +360,7 @@ var_decl	: type init_id_list MK_SEMICOLON
                     $$ = makeDeclNode(VARIABLE_DECL);
                     makeFamily($$, 2, $1, $2);
                 }
-            | ID id_list MK_SEMICOLON
+            | ID init_id_list MK_SEMICOLON
                 {
                     /*TODO*/
                     $$ = makeDeclNode(VARIABLE_DECL);
