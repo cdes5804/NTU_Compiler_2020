@@ -767,7 +767,7 @@ main (argc, argv)
 int argc;
 char *argv[];
   {
-     yyin = fopen(argv[1],"r");
+     yyin = fopen(argv[1], "r");
      yyparse();
      // printGV(prog, NULL);
      

@@ -107,13 +107,43 @@ DATA_TYPE getBiggerType(DATA_TYPE dataType1, DATA_TYPE dataType2)
     }
 }
 
+char* getIdName(AST_NODE* node) {
+    return node->semantic_value.identifierSemanticValue.identifierName;
+}
 
-void processProgramNode(AST_NODE *programNode)
+void processProgramNode(AST_NODE* programNode)
 {
+    AST_NODE* globalDeclarationNode = programNode->child;
+    while (globalDeclarationNode) {
+        AST_TYPE nodeType = globalDeclarationNode->nodeType;
+        if (nodeType == VARIABLE_DECL_LIST_NODE) { // variable declaration
+            processGeneralNode(globalDeclarationNode);
+        } else if (nodeType == DECLARATION_NODE) { // function declaration
+            processDeclarationNode(globalDeclarationNode);
+        } else {
+            fprintf(stderr, "Invalid node type in program node\n");
+        }
+
+        globalDeclarationNode = globalDeclarationNode->rightSibling;
+    }
 }
 
 void processDeclarationNode(AST_NODE* declarationNode)
 {
+    AST_NODE* typeNode = declarationNode->child;
+    processTypeNode(typeNode);
+    DECL_KIND declarationType = declarationNode->semantic_value.declSemanticValue.kind;
+    if (declarationType == VARIABLE_DECL) {
+        declareIdList(declarationNode, VARIABLE_ATTRIBUTE, 0);
+    } else if (declarationType == TYPE_DECL) {
+        declareIdList(declarationNode, TYPE_ATTRIBUTE, 0);
+    } else if (declarationType == FUNCTION_DECL) {
+        declareFunction(declarationNode);
+    } else if (declarationType == FUNCTION_PARAMETER_DECL) {
+        declareIdList(declarationNode, VARIABLE_ATTRIBUTE, 1);
+    } else {
+        fprintf(stderr, "Invalid declaration type in declaration node\n");
+    }
 }
 
 
@@ -211,6 +241,29 @@ void processStmtNode(AST_NODE* stmtNode)
 
 void processGeneralNode(AST_NODE *node)
 {
+    AST_TYPE nodeType = node->nodeType;
+    AST_NODE* childNode = node->child;
+    if (nodeType == VARIABLE_DECL_LIST_NODE) {
+        while (childNode) {
+            processDeclarationNode(childNode);
+            childNode = childNode->rightSibling;
+        }
+    } else if (nodeType == STMT_LIST_NODE) {
+        while (childNode) {
+            processStmtNode(childNode);
+            childNode = childNode->rightSibling;
+        }
+    } else if (nodeType == NONEMPTY_ASSIGN_EXPR_LIST_NODE) {
+        while (childNode) {
+
+        }
+    } else if (nodeType == NONEMPTY_RELOP_EXPR_LIST_NODE) {
+        while (childNode) {
+
+        }
+    } else {
+        fprintf(stderr, "Invalid node type in general node\n");
+    }
 }
 
 void processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ignoreFirstDimSize)

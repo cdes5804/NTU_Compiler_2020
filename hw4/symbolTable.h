@@ -84,12 +84,27 @@ typedef struct SymbolTableEntry
 
 } SymbolTableEntry;
 
+typedef struct ScopeStack
+{
+    struct ScopeStack* prevScope;
+    SymbolTableEntry* scopeStart;
+} ScopeStack;
+
 typedef struct SymbolTable
 {
+    /*
+        Scope is maintained by scopeStack.
+        There is no concept of scope in hashTable. hashTable only keep tracks of all entries that are available in the 
+        current scope.
+        hashTable does not care about which scope the entries lives in. If there is a name conflict with the outer scope,
+        remove the entry from the outer scope in hashTable and insert the entry in the inner scope so that the hashTable uses
+        the entry in the inner scope.
+        The entry from the outer scope will not be deleted (tracked by scopeStack) and will return to hashTable when the inner
+        scope is closed and the program returns to the outer scope.
+    */
     SymbolTableEntry* hashTable[HASH_TABLE_SIZE];
-    SymbolTableEntry** scopeDisplay;
+    ScopeStack* scopeStack;
     int currentLevel;
-    int scopeDisplayElementCount;
 } SymbolTable;
 
 
