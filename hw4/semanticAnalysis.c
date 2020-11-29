@@ -63,10 +63,10 @@ typedef enum ErrorMsgKind
     PASS_SCALAR_TO_ARRAY
 } ErrorMsgKind;
 
-void printErrorMsgSpecial(AST_NODE* node1, char* name2, ErrorMsgKind errorMsgKind)
+void printErrorMsgSpecial(AST_NODE* node, char* name, ErrorMsgKind errorMsgKind)
 {
     g_anyErrorOccur = 1;
-    printf("Error found in line %d\n", node1->linenumber);
+    printf("Error found in line %d\n", node->linenumber);
     /*
     switch(errorMsgKind)
     {

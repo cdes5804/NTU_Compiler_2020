@@ -4,14 +4,14 @@
 #include <stdio.h>
 // This file is for reference only, you are not required to follow the implementation. //
 
-int HASH(char * str) {
-	int idx=0;
-	while (*str){
+int HASH(charr* str) {
+	int idx = 0;
+	while (*str) {
 		idx = idx << 1;
-		idx+=*str;
+		idx += *str;
 		str++;
 	}
-	return (idx & (HASH_TABLE_SIZE-1));
+	return (idx & (HASH_TABLE_SIZE - 1));
 }
 
 SymbolTable symbolTable;
@@ -29,11 +29,11 @@ SymbolTableEntry* newSymbolTableEntry(int nestingLevel)
     return symbolTableEntry;
 }
 
-void removeFromHashTrain(int hashIndex, SymbolTableEntry* entry)
+void removeFromHashChain(int hashIndex, SymbolTableEntry* entry)
 {
 }
 
-void enterIntoHashTrain(int hashIndex, SymbolTableEntry* entry)
+void insertIntoHashChain(int hashIndex, SymbolTableEntry* entry)
 {
 }
 
@@ -49,7 +49,7 @@ SymbolTableEntry* retrieveSymbol(char* symbolName)
 {
 }
 
-SymbolTableEntry* enterSymbol(char* symbolName, SymbolAttribute* attribute)
+SymbolTableEntry* insertSymbol(char* symbolName, SymbolAttribute* attribute)
 {
 }
 
@@ -62,10 +62,10 @@ int declaredLocally(char* symbolName)
 {
 }
 
-void openScope()
+void openNewScope()
 {
 }
 
-void closeScope()
+void closeCurrentScope()
 {
 }

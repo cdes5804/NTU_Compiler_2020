@@ -96,10 +96,10 @@ typedef struct SymbolTable
 void initializeSymbolTable();
 void symbolTableEnd();
 SymbolTableEntry* retrieveSymbol(char* symbolName);
-SymbolTableEntry* enterSymbol(char* symbolName, SymbolAttribute* attribute);
+SymbolTableEntry* insertSymbol(char* symbolName, SymbolAttribute* attribute);
 void removeSymbol(char* symbolName);
 int declaredLocally(char* symbolName);
-void openScope();
-void closeScope();
+void openNewScope();
+void closeCurrentScope();
 
 #endif
