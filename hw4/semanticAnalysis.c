@@ -73,11 +73,11 @@ void printErrorMsgSpecial(AST_NODE* node, char* name, ErrorMsgKind errorMsgKind)
     switch(errorMsgKind)
     {
         case PASS_ARRAY_TO_SCALAR:
-            printf("invalid conversion from \'%s\' to \'%s\'\n",
+            printf("invalid conversion from array \'%s\' to scalar \'%s\'\n",
                    node->semantic_value.identifierSemanticValue.identifierName, name);
             break;
         case PASS_SCALAR_TO_ARRAY:
-            printf("invalid conversion from \'%s\' to \'%s\'\n",
+            printf("invalid conversion from scalar \'%s\' to array \'%s\'\n",
                    node->semantic_value.identifierSemanticValue.identifierName, name);
             break;
         default:
