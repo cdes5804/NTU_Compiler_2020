@@ -60,21 +60,30 @@ typedef enum ErrorMsgKind
     ARRAY_SIZE_NEGATIVE,
     ARRAY_SUBSCRIPT_NOT_INT,
     PASS_ARRAY_TO_SCALAR,
-    PASS_SCALAR_TO_ARRAY
+    PASS_SCALAR_TO_ARRAY,
+    NON_CONST_GLOBAL_INITIALIZATION,
+    TYPE_REDECLARE,
 } ErrorMsgKind;
 
 void printErrorMsgSpecial(AST_NODE* node, char* name, ErrorMsgKind errorMsgKind)
 {
     g_anyErrorOccur = 1;
     printf("Error found in line %d\n", node->linenumber);
-    /*
+    
     switch(errorMsgKind)
     {
-    default:
-        printf("Unhandled case in void printErrorMsg(AST_NODE* node, ERROR_MSG_KIND* errorMsgKind)\n");
-        break;
+        case PASS_ARRAY_TO_SCALAR:
+            printf("invalid conversion from \'%s\' to \'%s\'\n",
+                   node->semantic_value.identifierSemanticValue.identifierName, name);
+            break;
+        case PASS_SCALAR_TO_ARRAY:
+            printf("invalid conversion from \'%s\' to \'%s\'\n",
+                   node->semantic_value.identifierSemanticValue.identifierName, name);
+            break;
+        default:
+            printf("Unhandled case in void printErrorMsgSpecial(AST_NODE* node, char* name, ERROR_MSG_KIND* errorMsgKind)\n");
+            break;
     }
-    */
 }
 
 
@@ -82,13 +91,105 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
 {
     g_anyErrorOccur = 1;
     printf("Error found in line %d\n", node->linenumber);
-    /*
-    switch(errorMsgKind)
+
+    switch (errorMsgKind)
     {
-        printf("Unhandled case in void printErrorMsg(AST_NODE* node, ERROR_MSG_KIND* errorMsgKind)\n");
-        break;
+        case SYMBOL_IS_NOT_TYPE:
+            printf("unknown type name \'%s\'\n",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        case SYMBOL_REDECLARE:
+            printf("redeclaration of \'%s\'\n",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        case SYMBOL_UNDECLARED:
+            printf("identifier \'%s\' was not declared in this scope\n",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        case NOT_FUNCTION_NAME:
+            printf("called object \'%s\' is not a function\n",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        case TRY_TO_INIT_ARRAY:
+            printf("array \'%s\' cannot be initialized. This feature is not supported in C--\n",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        case EXCESSIVE_ARRAY_DIM_DECLARATION:
+            printf("dimension of array \'%s\' exceeds maximum array dimension \'%d\'\n",
+                   node->semantic_value.identifierSemanticValue.identifierName,
+                   MAX_ARRAY_DIMENSION);
+            break;
+        case RETURN_ARRAY:
+            printf("function \'%s\' cannot return array\n",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        case VOID_VARIABLE:
+            printf("variable \'%s\' declared void\n",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        case TYPEDEF_VOID_ARRAY:
+            printf("declaration of \'%s\' as array of voids\n",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        case PARAMETER_TYPE_UNMATCH:
+            /* Because of type coercion in C, this error might be unnecessary */
+            printf("parameter type unmatched\n");
+            break;
+        case TOO_FEW_ARGUMENTS:
+            printf("too few arguments to function \'%s\'\n",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        case TOO_MANY_ARGUMENTS:
+            printf("too many arguments to function \'%s\'\n",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        case RETURN_TYPE_UNMATCH:
+            /* Because of type coercion in c, this error only happens if it returns something in void function */
+            printf("return type unmatched\n");
+            break;
+        case INCOMPATIBLE_ARRAY_DIMENSION:
+            printf("incompatible array dimensions\n");
+            break;
+        case NOT_ASSIGNABLE:
+            printf("\'%s\' is not assignable",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        case NOT_ARRAY:
+            printf("subscripted value is neither array nor pointer nor vector\n");
+            break;
+        case IS_TYPE_NOT_VARIABLE:
+            printf("identifier \'%s\' is a type, not a variable\n",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        case IS_FUNCTION_NOT_VARIABLE:
+            printf("identifier \'%s\' is a function, not a variable\n",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        case STRING_OPERATION:
+            printf("string operation is not supported in C--\n");
+            break;
+        case ARRAY_SIZE_NOT_INT:
+            printf("size of array \'%s\' is not an integer\n",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        case ARRAY_SIZE_NEGATIVE:
+            printf("size of array \'%s\' is negative\n",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        case ARRAY_SUBSCRIPT_NOT_INT:
+            printf("array subscript is not an integer\n");
+            break;
+        case NON_CONST_GLOBAL_INITIALIZATION:
+            printf("initializer element is not constant\n");
+            break;
+        case TYPE_REDECLARE:
+            printf("conflicting types for \'%s\'\n",
+                   node->semantic_value.identifierSemanticValue.identifierName);
+            break;
+        default:
+            printf("Unhandled case in void printErrorMsg(AST_NODE* node, ERROR_MSG_KIND* errorMsgKind)\n");
+            break;
     }
-    */
 }
 
 
