@@ -86,7 +86,6 @@ void printErrorMsgSpecial(AST_NODE* node, char* name, ErrorMsgKind errorMsgKind)
     }
 }
 
-
 void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
 {
     g_anyErrorOccur = 1;
@@ -362,25 +361,72 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
 
 void checkAssignOrExpr(AST_NODE* assignOrExprRelatedNode)
 {
+    if (assignOrExprRelatedNode->nodeType == STMT_NODE) {
+        switch (assignOrExprRelatedNode->semantic_value.stmtSemanticValue.kind) {
+            case ASSIGN_STMT:
+                checkAssignmentStmt(assignOrExprRelatedNode);
+                break;
+            case FUNCTION_CALL_STMT:
+                checkFunctionCall(assignOrExprRelatedNode);
+                break;
+        }
+    } else {
+        processExprRelatedNode(assignOrExprRelatedNode);
+    }
 }
 
 void checkWhileStmt(AST_NODE* whileNode)
 {
+    checkAssignOrExpr(whileNode->child);
+    processStmtNode(whileNode->child->rightSibling);
 }
 
 
 void checkForStmt(AST_NODE* forNode)
 {
+    AST_NODE* initExpr = forNode->child;
+    AST_NODE* conditionExpr = initExpr->rightSibling;
+    AST_NODE* updateExpr = conditionExpr->rightSibling;
+    AST_NODE* bodyNode = conditionExpr->rightSibling;
+
+    processGeneralNode(initExpr);
+    processGeneralNode(conditionExpr);
+    processGeneralNode(updateExpr);
+    processStmtNode(bodyNode);
 }
 
 
 void checkAssignmentStmt(AST_NODE* assignmentNode)
 {
+    AST_NODE* idNode = assignmentNode->child;
+    AST_NODE* exprNode = idNode->rightSibling;
+
+    processVariableLValue(idNode);
+    processExprRelatedNode(exprNode);
+
+    if (idNode->dataType == ERROR_TYPE || exprNode->dataType == ERROR_TYPE) {
+        assignmentNode->dataType = ERROR_TYPE;
+    } else if (exprNode->dataType == INT_PTR_TYPE || exprNode->dataType == FLOAT_PTR_TYPE) {
+        printErrorMsg(exprNode, INCOMPATIBLE_ARRAY_DIMENSION);
+        assignmentNode->dataType = ERROR_TYPE;
+    } else if (exprNode->dataType = CONST_STRING_TYPE) {
+        printErrorMsg(exprNode, STRING_OPERATION);
+        assignmentNode->dataType = ERROR_TYPE;
+    } else {
+        assignmentNode->dataType = getBiggerType(idNode->dataType, exprNode->dataType);
+    }
 }
 
 
 void checkIfStmt(AST_NODE* ifNode)
 {
+    AST_NODE* boolExprNode = ifNode->child;
+    AST_NODE* ifBodyNode = boolExprNode->rightSibling;
+    AST_NODE* elseBodyNode = ifBodyNode->rightSibling;
+
+    checkAssignOrExpr(boolExprNode);
+    processStmtNode(ifBodyNode);
+    processStmtNode(elseBodyNode);
 }
 
 void checkWriteFunction(AST_NODE* functionCallNode)
@@ -398,6 +444,24 @@ void checkParameterPassing(Parameter* formalParameter, AST_NODE* actualParameter
 
 void processExprRelatedNode(AST_NODE* exprRelatedNode)
 {
+    switch (exprRelatedNode->nodeType) {
+        case EXPR_NODE:
+            processExprNode(exprRelatedNode);
+            break;
+        case STMT_NODE:
+            checkFunctionCall(exprRelatedNode);
+            break;
+        case IDENTIFIER_NODE:
+            processVariableRValue(exprRelatedNode);
+            break;
+        case CONST_VALUE_NODE:
+            processConstValueNode(exprRelatedNode);
+            break;
+        default:
+            fprintf(stderr, "Unrecognized nodeType in exprRelatedNode\n");
+            exprRelatedNode->dataType = ERROR_TYPE;
+            break;
+    }
 }
 
 void getExprOrConstValue(AST_NODE* exprOrConstNode, int* iValue, float* fValue)
@@ -425,6 +489,25 @@ void processVariableRValue(AST_NODE* idNode)
 
 void processConstValueNode(AST_NODE* constValueNode)
 {
+    switch (constValueNode->semantic_value.const1->const_type) {
+        case INTEGERC:
+            constValueNode->dataType = INT_TYPE;
+            constValueNode->semantic_value.exprSemanticValue.constEvalValue.iValue =
+                constValueNode->semantic_value.const1->const_u.intval;
+            break;
+        case FLOATC:
+            constValueNode->dataType = FLOAT_TYPE;
+            constValueNode->semantic_value.exprSemanticValue.constEvalValue.fValue = 
+                constValueNode->semantic_value.const1->const_u.fval;
+            break;
+        case STRINGC:
+            constValueNode->dataType = CONST_STRING_TYPE;
+            break;
+        default:
+            fprintf(stderr, "Unrecognized const_type in constValueNode\n");
+            constValueNode->dataType = ERROR_TYPE;
+            break;
+    }
 }
 
 
@@ -435,38 +518,94 @@ void checkReturnStmt(AST_NODE* returnNode)
 
 void processBlockNode(AST_NODE* blockNode)
 {
+    openNewScope();
+
+    AST_NODE* node = blockNode->child;
+    while (node) {
+        processGeneralNode(node);
+        node = node->rightSibling;
+    }
+
+    closeCurrentScope();
 }
 
 
 void processStmtNode(AST_NODE* stmtNode)
 {
+    if (stmtNode->nodeType == NUL_NODE) {
+        return;
+    }
+    else if (stmtNode->nodeType == BLOCK_NODE) {
+        processBlockNode(stmtNode);
+    } else {
+        switch (stmtNode->semantic_value.stmtSemanticValue.kind) {
+            case WHILE_STMT:
+                checkWhileStmt(stmtNode);
+                break;
+            case FOR_STMT:
+                checkForStmt(stmtNode);
+                break;
+            case ASSIGN_STMT:
+                checkAssignmentStmt(stmtNode);
+                break;
+            case IF_STMT:
+                checkIfStmt(stmtNode);
+                break;
+            case FUNCTION_CALL_STMT:
+                checkFunctionCall(stmtNode);
+                break;
+            case RETURN_STMT:
+                checkReturnStmt(stmtNode);
+                break;
+            default:
+                fprintf(stderr, "Internal Error: unrecognized SemanticValue kind in stmtNode\n");
+                stmtNode->dataType = ERROR_TYPE;
+                break;
+        }
+    }
 }
 
-
-void processGeneralNode(AST_NODE *node)
+void processGeneralNode(AST_NODE* node)
 {
     AST_TYPE nodeType = node->nodeType;
     AST_NODE* childNode = node->child;
     if (nodeType == VARIABLE_DECL_LIST_NODE) {
         while (childNode) {
             processDeclarationNode(childNode);
+            if (childNode->dataType == ERROR_TYPE) {
+                node->dataType = ERROR_TYPE;
+            }
             childNode = childNode->rightSibling;
         }
     } else if (nodeType == STMT_LIST_NODE) {
         while (childNode) {
             processStmtNode(childNode);
+            if (childNode->dataType == ERROR_TYPE) {
+                node->dataType = ERROR_TYPE;
+            }
             childNode = childNode->rightSibling;
         }
     } else if (nodeType == NONEMPTY_ASSIGN_EXPR_LIST_NODE) {
         while (childNode) {
-
+            checkAssignOrExpr(childNode);
+            if (childNode->dataType == ERROR_TYPE) {
+                node->dataType = ERROR_TYPE;
+            }
+            childNode = childNode->rightSibling;
         }
     } else if (nodeType == NONEMPTY_RELOP_EXPR_LIST_NODE) {
         while (childNode) {
-
+            processExprRelatedNode(childNode);
+            if (childNode->dataType == ERROR_TYPE) {
+                node->dataType = ERROR_TYPE;
+            }
+            childNode = childNode->rightSibling;
         }
     } else {
-        fprintf(stderr, "Invalid node type in general node\n");
+        if (nodeType != NUL_NODE) {
+            fprintf(stderr, "Invalid node type in general node\n");
+            node->dataType = ERROR_TYPE;
+        }
     }
 }
 
