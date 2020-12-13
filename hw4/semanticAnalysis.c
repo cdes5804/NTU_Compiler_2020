@@ -33,7 +33,7 @@ void processVariableRValue(AST_NODE* idNode);
 void processConstValueNode(AST_NODE* constValueNode);
 void getExprOrConstValue(AST_NODE* exprOrConstNode, int* iValue, float* fValue);
 void evaluateExprValue(AST_NODE* exprNode);
-
+void processInitValue(AST_NODE* idNode);
 
 typedef enum ErrorMsgKind
 {
@@ -250,11 +250,113 @@ void processDeclarationNode(AST_NODE* declarationNode)
 
 void processTypeNode(AST_NODE* idNodeAsType)
 {
+    SymbolTableEntry *symtab_lookup = retrieveSymbol(idNodeAsType->semantic_value.identifierSemanticValue.identifierName);
+    if (symtab_lookup == NULL || symtab_lookup->attribute->attributeKind != TYPE_ATTRIBUTE) {
+        printErrorMsg(idNodeAsType, SYMBOL_IS_NOT_TYPE);
+        idNodeAsType->dataType = ERROR_TYPE;
+        return;
+    }
+    idNodeAsType->semantic_value.identifierSemanticValue.symbolTableEntry = symtab_lookup;
+    switch (symtab_lookup->attribute->attr.typeDescriptor->kind) {
+        case SCALAR_TYPE_DESCRIPTOR:
+            idNodeAsType->dataType = symtab_lookup->attribute->attr.typeDescriptor->properties.dataType;
+            break;
+        case ARRAY_TYPE_DESCRIPTOR:
+            idNodeAsType->dataType = symtab_lookup->attribute->attr.typeDescriptor->properties.arrayProperties.elementType;
+            break;
+        default:
+            fprintf(stderr, "Internal Error: invalid typeDescriptor kind in processTypeNode\n");
+            break;
+    }
 }
-
 
 void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTypeAttribute, int ignoreArrayFirstDimSize)
 {
+    AST_NODE *typeNode = declarationNode->child;
+    TypeDescriptor *typeDescriptor_typeNode = typeNode->semantic_value.identifierSemanticValue.symbolTableEntry->attribute->attr.typeDescriptor;
+    AST_NODE *idNode = declarationNode->child->rightSibling;
+
+    for (; idNode != NULL; idNode = idNode->rightSibling) {
+        idNode->dataType = typeNode->dataType;
+        IdentifierSemanticValue semanticValue = idNode->semantic_value.identifierSemanticValue;
+
+        // detect redeclaration error
+        if (declaredLocally(semanticValue.identifierName)) {
+            if (isVariableOrTypeAttribute == VARIABLE_ATTRIBUTE) {
+                printErrorMsg(idNode, SYMBOL_REDECLARE);
+            } else if (isVariableOrTypeAttribute == TYPE_ATTRIBUTE) {
+                printErrorMsg(idNode, TYPE_REDECLARE);
+            }
+            idNode->dataType = declarationNode->dataType = ERROR_TYPE;
+            continue;
+        }
+
+        // detect void variable
+        if (typeNode->dataType == VOID_TYPE && isVariableOrTypeAttribute == VARIABLE_ATTRIBUTE) {
+            printErrorMsg(idNode, VOID_VARIABLE);
+            idNode->dataType = declarationNode->dataType = ERROR_TYPE;
+            continue;
+        }
+
+        SymbolAttribute *symbolAttribute = (SymbolAttribute*)malloc(sizeof(SymbolAttribute));
+        symbolAttribute->attributeKind = isVariableOrTypeAttribute;
+        switch (idNode->semantic_value.identifierSemanticValue.kind) {
+            case NORMAL_ID:
+                symbolAttribute->attr.typeDescriptor = typeDescriptor_typeNode;
+                break;
+            case ARRAY_ID:
+                // detect "typedef void array"
+                if (typeNode->dataType == VOID_TYPE && isVariableOrTypeAttribute == TYPE_ATTRIBUTE) {
+                    printErrorMsg(idNode, TYPEDEF_VOID_ARRAY);
+                    idNode->dataType = ERROR_TYPE;
+                }
+
+                TypeDescriptor *typeDescriptor_idNode = (TypeDescriptor*)malloc(sizeof(TypeDescriptor));
+                symbolAttribute->attr.typeDescriptor = typeDescriptor_idNode;
+                typeDescriptor_idNode->kind = ARRAY_TYPE_DESCRIPTOR;
+
+                processDeclDimList(idNode, typeDescriptor_idNode, ignoreArrayFirstDimSize);
+
+                // synthesize array dimension
+                int typeArrayDimension = typeDescriptor_typeNode->properties.arrayProperties.dimension;
+                int idArrayDimension = typeDescriptor_idNode->properties.arrayProperties.dimension;
+                typeDescriptor_idNode->properties.arrayProperties.dimension += typeArrayDimension;
+                if (symbolAttribute->attr.typeDescriptor->properties.arrayProperties.dimension > MAX_ARRAY_DIMENSION) {
+                    printErrorMsg(idNode, EXCESSIVE_ARRAY_DIM_DECLARATION);
+                    idNode->dataType = ERROR_TYPE;
+                }
+                for (int i = 0; i < typeArrayDimension; i++) {
+                    typeDescriptor_idNode->properties.arrayProperties.sizeInEachDimension[idArrayDimension + i] = 
+                        typeDescriptor_typeNode->properties.arrayProperties.sizeInEachDimension[i];
+                }
+
+                // synthesize element type
+                typeDescriptor_idNode->properties.arrayProperties.elementType = 
+                    typeDescriptor_typeNode->properties.arrayProperties.elementType;
+                break;
+            case WITH_INIT_ID:
+                if (typeDescriptor_typeNode->kind == ARRAY_TYPE_DESCRIPTOR) {
+                    printErrorMsg(idNode, TRY_TO_INIT_ARRAY);
+                    idNode->dataType = ERROR_TYPE;
+                } else {
+                    symbolAttribute->attr.typeDescriptor = typeDescriptor_typeNode;
+                    processInitValue(idNode);
+                }
+                break;
+            default:
+                fprintf(stderr, "Internal Error: unrecognized identifier kind in declareIdList\n");
+                break;
+        }
+
+        if (idNode->dataType == ERROR_TYPE) {
+            free(symbolAttribute);
+            declarationNode->dataType = ERROR_TYPE;
+            continue;
+        }
+
+        SymbolTableEntry* symtab_entry = insertSymbol(semanticValue.identifierName, symbolAttribute);
+        idNode->semantic_value.identifierSemanticValue.symbolTableEntry = symtab_entry;
+    }
 }
 
 void checkAssignOrExpr(AST_NODE* assignOrExprRelatedNode)
@@ -374,4 +476,18 @@ void processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ig
 
 void declareFunction(AST_NODE* declarationNode)
 {
+}
+
+void processInitValue(AST_NODE* idNode)
+{
+    AST_NODE *initValueNode = idNode->child;
+    processExprRelatedNode(initValueNode);
+    if (initValueNode->nodeType == EXPR_NODE) {
+        if (!initValueNode->semantic_value.exprSemanticValue.isConstEval && isCurrentScopeGlobal()) {
+            printErrorMsg(idNode, NON_CONST_GLOBAL_INITIALIZATION);
+            idNode->dataType = ERROR_TYPE;
+        }
+    }
+    if (initValueNode->dataType == ERROR_TYPE)
+        idNode->dataType = ERROR_TYPE;
 }

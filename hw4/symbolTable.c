@@ -255,3 +255,8 @@ void closeCurrentScope()
     symbolTable.scopeStack = prevScope;
     symbolTable.currentLevel -= 1;
 }
+
+int isCurrentScopeGlobal()
+{
+    return symbolTable.currentLevel == 0;
+}

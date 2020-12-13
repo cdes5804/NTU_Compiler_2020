@@ -116,5 +116,6 @@ void removeSymbol(char* symbolName);
 int declaredLocally(char* symbolName);
 void openNewScope();
 void closeCurrentScope();
+int isCurrentScopeGlobal();
 
 #endif
