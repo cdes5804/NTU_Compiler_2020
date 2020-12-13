@@ -33,7 +33,7 @@ void processVariableRValue(AST_NODE* idNode);
 void processConstValueNode(AST_NODE* constValueNode);
 void getExprOrConstValue(AST_NODE* exprOrConstNode, int* iValue, float* fValue);
 void evaluateExprValue(AST_NODE* exprNode);
-void processInitValue(AST_NODE* idNode);
+void processInitializer(AST_NODE* idNode);
 
 typedef enum ErrorMsgKind
 {
@@ -180,7 +180,7 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
             printf("array subscript is not an integer\n");
             break;
         case NON_CONST_GLOBAL_INITIALIZATION:
-            printf("initializer element is not constant\n");
+            printf("initializer element is not constant in global scope\n");
             break;
         case TYPE_REDECLARE:
             printf("conflicting types for \'%s\'\n",
@@ -324,6 +324,7 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
                 if (symbolAttribute->attr.typeDescriptor->properties.arrayProperties.dimension > MAX_ARRAY_DIMENSION) {
                     printErrorMsg(idNode, EXCESSIVE_ARRAY_DIM_DECLARATION);
                     idNode->dataType = ERROR_TYPE;
+                    break;
                 }
                 for (int i = 0; i < typeArrayDimension; i++) {
                     typeDescriptor_idNode->properties.arrayProperties.sizeInEachDimension[idArrayDimension + i] = 
@@ -340,7 +341,7 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
                     idNode->dataType = ERROR_TYPE;
                 } else {
                     symbolAttribute->attr.typeDescriptor = typeDescriptor_typeNode;
-                    processInitValue(idNode);
+                    processInitializer(idNode);
                 }
                 break;
             default:
@@ -478,16 +479,16 @@ void declareFunction(AST_NODE* declarationNode)
 {
 }
 
-void processInitValue(AST_NODE* idNode)
+void processInitializer(AST_NODE* idNode)
 {
-    AST_NODE *initValueNode = idNode->child;
-    processExprRelatedNode(initValueNode);
-    if (initValueNode->nodeType == EXPR_NODE) {
-        if (!initValueNode->semantic_value.exprSemanticValue.isConstEval && isCurrentScopeGlobal()) {
+    AST_NODE *initializerNode = idNode->child;
+    processExprRelatedNode(initializerNode);
+    if (initializerNode->nodeType == EXPR_NODE) {
+        if (!initializerNode->semantic_value.exprSemanticValue.isConstEval && isCurrentScopeGlobal()) {
             printErrorMsg(idNode, NON_CONST_GLOBAL_INITIALIZATION);
             idNode->dataType = ERROR_TYPE;
         }
     }
-    if (initValueNode->dataType == ERROR_TYPE)
+    if (initializerNode->dataType == ERROR_TYPE)
         idNode->dataType = ERROR_TYPE;
 }
