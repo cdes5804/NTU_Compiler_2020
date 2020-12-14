@@ -215,6 +215,16 @@ char* getIdName(AST_NODE* node) {
     return node->semantic_value.identifierSemanticValue.identifierName;
 }
 
+TypeDescriptor* getIdNodeTypeDescriptor(AST_NODE* typeNode)
+{
+    SymbolTableEntry *symtabEntry = typeNode->semantic_value.identifierSemanticValue.symbolTableEntry;
+    if (symtabEntry == NULL) {
+        fprintf(stderr, "ID node not yet processed\n");
+        return NULL;
+    }
+    return symtabEntry->attribute->attr.typeDescriptor;
+}
+
 void processProgramNode(AST_NODE* programNode)
 {
     AST_NODE* globalDeclarationNode = programNode->child;
@@ -265,7 +275,13 @@ void processTypeNode(AST_NODE* idNodeAsType)
             idNodeAsType->dataType = symtab_lookup->attribute->attr.typeDescriptor->properties.dataType;
             break;
         case ARRAY_TYPE_DESCRIPTOR:
-            idNodeAsType->dataType = symtab_lookup->attribute->attr.typeDescriptor->properties.arrayProperties.elementType;
+            switch (symtab_lookup->attribute->attr.typeDescriptor->properties.arrayProperties.elementType) {
+                case INT_TYPE:
+                    idNodeAsType->dataType = INT_PTR_TYPE;
+                    break;
+                case FLOAT_TYPE:
+                    idNodeAsType->dataType = FLOAT_PTR_TYPE;
+            }
             break;
         default:
             fprintf(stderr, "Internal Error: invalid typeDescriptor kind in processTypeNode\n");
@@ -276,6 +292,10 @@ void processTypeNode(AST_NODE* idNodeAsType)
 void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTypeAttribute, int ignoreArrayFirstDimSize)
 {
     AST_NODE *typeNode = declarationNode->child;
+
+    if (typeNode->dataType == ERROR_TYPE)
+        return;
+
     TypeDescriptor *typeDescriptor_typeNode = typeNode->semantic_value.identifierSemanticValue.symbolTableEntry->attribute->attr.typeDescriptor;
     AST_NODE *idNode = declarationNode->child->rightSibling;
 
@@ -312,7 +332,7 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
                     idNode->dataType = INT_PTR_TYPE;
                 else if (typeNode->dataType == FLOAT_TYPE)
                     idNode->dataType = FLOAT_PTR_TYPE;
-                else
+                else  // VOID_TYPE, INT_PTR_TYPE, FLOAT_PTR_TYPE
                     idNode->dataType = typeNode->dataType;
                 
                 // detect "typedef void array"
@@ -330,20 +350,27 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
                 // synthesize array dimension
                 int typeArrayDimension = typeDescriptor_typeNode->properties.arrayProperties.dimension;
                 int idArrayDimension = typeDescriptor_idNode->properties.arrayProperties.dimension;
-                typeDescriptor_idNode->properties.arrayProperties.dimension += typeArrayDimension;
-                if (symbolAttribute->attr.typeDescriptor->properties.arrayProperties.dimension > MAX_ARRAY_DIMENSION) {
-                    printErrorMsg(idNode, EXCESSIVE_ARRAY_DIM_DECLARATION);
-                    idNode->dataType = ERROR_TYPE;
-                    break;
-                }
-                for (int i = 0; i < typeArrayDimension; i++) {
-                    typeDescriptor_idNode->properties.arrayProperties.sizeInEachDimension[idArrayDimension + i] = 
-                        typeDescriptor_typeNode->properties.arrayProperties.sizeInEachDimension[i];
-                }
 
-                // synthesize element type
-                typeDescriptor_idNode->properties.arrayProperties.elementType = 
-                    typeDescriptor_typeNode->properties.arrayProperties.elementType;
+                if (typeDescriptor_typeNode->kind == ARRAY_TYPE_DESCRIPTOR) {
+                    typeDescriptor_idNode->properties.arrayProperties.dimension += typeArrayDimension;
+                    if (symbolAttribute->attr.typeDescriptor->properties.arrayProperties.dimension > MAX_ARRAY_DIMENSION) {
+                        printErrorMsg(idNode, EXCESSIVE_ARRAY_DIM_DECLARATION);
+                        idNode->dataType = ERROR_TYPE;
+                        break;
+                    }
+                    for (int i = 0; i < typeArrayDimension; i++) {
+                        typeDescriptor_idNode->properties.arrayProperties.sizeInEachDimension[idArrayDimension + i] = 
+                            typeDescriptor_typeNode->properties.arrayProperties.sizeInEachDimension[i];
+                    }
+
+                    // synthesize element type
+                    typeDescriptor_idNode->properties.arrayProperties.elementType = 
+                        typeDescriptor_typeNode->properties.arrayProperties.elementType;
+                } else {
+                    typeDescriptor_idNode->properties.arrayProperties.elementType = 
+                        typeDescriptor_typeNode->properties.dataType;
+                }
+                
                 break;
             case WITH_INIT_ID:
                 idNode->dataType = typeNode->dataType;
@@ -421,7 +448,7 @@ void checkAssignmentStmt(AST_NODE* assignmentNode)
     } else if (exprNode->dataType == INT_PTR_TYPE || exprNode->dataType == FLOAT_PTR_TYPE) {
         printErrorMsg(exprNode, INCOMPATIBLE_ARRAY_DIMENSION);
         assignmentNode->dataType = ERROR_TYPE;
-    } else if (exprNode->dataType = CONST_STRING_TYPE) {
+    } else if (exprNode->dataType == CONST_STRING_TYPE) {
         printErrorMsg(exprNode, STRING_OPERATION);
         assignmentNode->dataType = ERROR_TYPE;
     } else {
@@ -660,18 +687,18 @@ void processArraySubscript(AST_NODE* idNode, TypeDescriptor *typeDescriptor)
         if (dimension >= typeDescriptor->properties.arrayProperties.dimension) {
             printErrorMsg(idNode, NOT_ARRAY);
             idNode->dataType = ERROR_TYPE;
-            return;
+            continue;
         }
 
         processExprRelatedNode(dimNode);
         if (dimNode->dataType == ERROR_TYPE) {
             idNode->dataType = ERROR_TYPE;
-            break;
+            continue;
         }
         if (dimNode->dataType != INT_TYPE) {
             printErrorMsg(idNode, ARRAY_SUBSCRIPT_NOT_INT);
             idNode->dataType = ERROR_TYPE;
-            break;
+            continue;
         }
     }
     if (dimension < typeDescriptor->properties.arrayProperties.dimension) {
@@ -805,6 +832,7 @@ void processConstValueNode(AST_NODE* constValueNode)
 
 void checkReturnStmt(AST_NODE* returnNode)
 {
+    
 }
 
 
@@ -922,11 +950,11 @@ void processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ig
         
         if (dimNode->dataType == ERROR_TYPE) {
             idNode->dataType = ERROR_TYPE;
-            return;
+            continue;
         } else if (dimNode->dataType != INT_TYPE) {
             printErrorMsg(idNode, ARRAY_SIZE_NOT_INT);
             idNode->dataType = ERROR_TYPE;
-            return;
+            continue;
         }
 
         switch (dimNode->nodeType) {
@@ -950,23 +978,118 @@ void processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ig
             idNode->dataType = ERROR_TYPE;
         }
     }
+    typeDescriptor->properties.arrayProperties.dimension = dimension;
 }
 
+void freeFuncSignatureAttribute(SymbolAttribute* attribute)
+{
+    Parameter *paramNode = attribute->attr.functionSignature->parameterList;
+    while (paramNode) {
+        Parameter *tmp = paramNode->next;
+        free(paramNode);
+        paramNode = tmp;
+    }
+    free(attribute->attr.functionSignature);
+    free(attribute);
+}
+
+Parameter* appendParameter(Parameter* paramList, AST_NODE* paramNode)
+{
+    Parameter *newNode = (Parameter*)malloc(sizeof(Parameter));
+    AST_NODE *paramIdNode = paramNode->child->rightSibling;
+    newNode->next = NULL;
+    newNode->parameterName = getIdName(paramIdNode);
+    newNode->type = getIdNodeTypeDescriptor(paramIdNode);
+    if (paramList == NULL) {
+        return newNode;
+    } else {
+        for (; paramList->next != NULL; paramList = paramList->next);
+        paramList->next = newNode;
+    }
+}
 
 void declareFunction(AST_NODE* declarationNode)
 {
+    AST_NODE *returnTypeNode = declarationNode->child;
+    AST_NODE *funcNameNode = returnTypeNode->rightSibling;
+    AST_NODE *paramListNode = funcNameNode->rightSibling;
+    AST_NODE *blockNode = paramListNode->rightSibling;
+
+    if (returnTypeNode->dataType == ERROR_TYPE) {
+        declarationNode->dataType = ERROR_TYPE;
+        return;
+    }
+
+    TypeDescriptor *returnTypeDescriptor = getIdNodeTypeDescriptor(returnTypeNode);
+    if (returnTypeDescriptor->kind == ARRAY_TYPE_DESCRIPTOR) {
+        printErrorMsg(returnTypeNode, RETURN_ARRAY);
+        declarationNode->dataType = ERROR_TYPE;
+        return;
+    }
+
+    char *funcName = getIdName(funcNameNode);
+    if (declaredLocally(funcName)) {
+        printErrorMsg(funcNameNode, SYMBOL_REDECLARE);
+        declarationNode->dataType = ERROR_TYPE;
+        return;
+    }
+
+    SymbolAttribute *attribute = (SymbolAttribute*)malloc(sizeof(SymbolAttribute));
+    attribute->attributeKind = FUNCTION_SIGNATURE;
+    attribute->attr.functionSignature = (FunctionSignature*)malloc(sizeof(FunctionSignature));
+    attribute->attr.functionSignature->parametersCount = 0;
+    attribute->attr.functionSignature->parameterList = NULL;
+    attribute->attr.functionSignature->returnType = returnTypeDescriptor->properties.dataType;
+
+    insertSymbol(funcName, attribute);
+
+    openNewScope();
+
+    AST_NODE *paramNode = paramListNode->child;
+    int paramCount = 0;
+    for (; paramNode != NULL; paramNode = paramNode->rightSibling, ++paramCount) {
+        processDeclarationNode(paramNode);
+
+        if (paramNode->dataType == ERROR_TYPE) {
+            declarationNode->dataType = ERROR_TYPE;
+            continue;
+        }
+
+        attribute->attr.functionSignature->parameterList
+            = appendParameter(attribute->attr.functionSignature->parameterList, paramNode);
+    }
+    attribute->attr.functionSignature->parametersCount = paramCount;
+
+    // cannot use processBlockNode(blockNode) because it opens new scope
+    AST_NODE* node = blockNode->child;
+    while (node) {
+        processGeneralNode(node);
+        if (node->dataType == ERROR_TYPE)
+            declarationNode->dataType = ERROR_TYPE;
+        node = node->rightSibling;
+    }
+
+    closeCurrentScope();
+
+    if (declarationNode->dataType == ERROR_TYPE) {
+        freeFuncSignatureAttribute(attribute);
+        removeSymbol(funcName);
+    }
 }
 
 void processInitializer(AST_NODE* idNode)
 {
     AST_NODE *initializerNode = idNode->child;
     processExprRelatedNode(initializerNode);
-    if (initializerNode->nodeType == EXPR_NODE) {
-        if (!initializerNode->semantic_value.exprSemanticValue.isConstEval && isCurrentScopeGlobal()) {
+    if (isCurrentScopeGlobal()) {
+        if ((initializerNode->nodeType == EXPR_NODE &&
+            !initializerNode->semantic_value.exprSemanticValue.isConstEval) ||
+            initializerNode->nodeType == IDENTIFIER_NODE) {
             printErrorMsg(idNode, NON_CONST_GLOBAL_INITIALIZATION);
             idNode->dataType = ERROR_TYPE;
         }
     }
+    
     if (initializerNode->dataType == ERROR_TYPE)
         idNode->dataType = ERROR_TYPE;
 }
