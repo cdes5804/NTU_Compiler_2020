@@ -74,12 +74,20 @@ void printErrorMsgSpecial(AST_NODE* node, char* name, ErrorMsgKind errorMsgKind)
     switch(errorMsgKind)
     {
         case PASS_ARRAY_TO_SCALAR:
-            printf("invalid conversion from array \'%s\' to scalar \'%s\'\n",
-                   node->semantic_value.identifierSemanticValue.identifierName, name);
+            if (node && node->nodeType == IDENTIFIER_NODE) {
+                printf("invalid conversion from array \'%s\' to scalar \'%s\'\n",
+                       node->semantic_value.identifierSemanticValue.identifierName, name);
+            } else {
+                printf("invalid conversion from array expression to scalar \'%s\'\n", name);
+            }
             break;
         case PASS_SCALAR_TO_ARRAY:
-            printf("invalid conversion from scalar \'%s\' to array \'%s\'\n",
-                   node->semantic_value.identifierSemanticValue.identifierName, name);
+            if (node && node->nodeType == IDENTIFIER_NODE) {
+                printf("invalid conversion from scalar \'%s\' to array \'%s\'\n",
+                       node->semantic_value.identifierSemanticValue.identifierName, name);
+            } else {
+                printf("invalid conversion from scalar expression to array \'%s\'\n", name);
+            }
             break;
         default:
             printf("Unhandled case in void printErrorMsgSpecial(AST_NODE* node, char* name, ERROR_MSG_KIND* errorMsgKind)\n");
@@ -195,12 +203,10 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
     }
 }
 
-
 void semanticAnalysis(AST_NODE *root)
 {
     processProgramNode(root);
 }
-
 
 DATA_TYPE getBiggerType(DATA_TYPE dataType1, DATA_TYPE dataType2)
 {
@@ -215,9 +221,9 @@ char* getIdName(AST_NODE* node) {
     return node->semantic_value.identifierSemanticValue.identifierName;
 }
 
-TypeDescriptor* getIdNodeTypeDescriptor(AST_NODE* typeNode)
+TypeDescriptor* getIdNodeTypeDescriptor(AST_NODE* idNode)
 {
-    SymbolTableEntry *symtabEntry = typeNode->semantic_value.identifierSemanticValue.symbolTableEntry;
+    SymbolTableEntry *symtabEntry = idNode->semantic_value.identifierSemanticValue.symbolTableEntry;
     if (symtabEntry == NULL) {
         fprintf(stderr, "ID node not yet processed\n");
         return NULL;
@@ -259,7 +265,6 @@ void processDeclarationNode(AST_NODE* declarationNode)
         fprintf(stderr, "Invalid declaration type in declaration node\n");
     }
 }
-
 
 void processTypeNode(AST_NODE* idNodeAsType)
 {
@@ -420,7 +425,6 @@ void checkWhileStmt(AST_NODE* whileNode)
     processStmtNode(whileNode->child->rightSibling);
 }
 
-
 void checkForStmt(AST_NODE* forNode)
 {
     AST_NODE* initExpr = forNode->child;
@@ -433,7 +437,6 @@ void checkForStmt(AST_NODE* forNode)
     processGeneralNode(updateExpr);
     processStmtNode(bodyNode);
 }
-
 
 void checkAssignmentStmt(AST_NODE* assignmentNode)
 {
@@ -456,7 +459,6 @@ void checkAssignmentStmt(AST_NODE* assignmentNode)
     }
 }
 
-
 void checkIfStmt(AST_NODE* ifNode)
 {
     AST_NODE* boolExprNode = ifNode->child;
@@ -474,10 +476,68 @@ void checkWriteFunction(AST_NODE* functionCallNode)
 
 void checkFunctionCall(AST_NODE* functionCallNode)
 {
+    AST_NODE *funcNameNode = functionCallNode->child;
+    AST_NODE *relopExprListNode = funcNameNode->rightSibling;
+
+    SymbolTableEntry *symtabEntry = retrieveSymbol(getIdName(funcNameNode));
+    if (symtabEntry == NULL) {
+        printErrorMsg(funcNameNode, SYMBOL_UNDECLARED);
+        functionCallNode->dataType = ERROR_TYPE;
+        return;
+    } else if (symtabEntry->attribute->attributeKind != FUNCTION_SIGNATURE) {
+        printErrorMsg(funcNameNode, NOT_FUNCTION_NAME);
+        functionCallNode->dataType = ERROR_TYPE;
+        return;
+    }
+
+    FunctionSignature *funcSignature = symtabEntry->attribute->attr.functionSignature;
+    functionCallNode->dataType = funcSignature->returnType;
+
+    processGeneralNode(relopExprListNode);
+    if (relopExprListNode->dataType == ERROR_TYPE)
+        functionCallNode->dataType = ERROR_TYPE;
+
+    Parameter *prototypeParam = funcSignature->parameterList;
+    AST_NODE *actualParam = relopExprListNode->child;
+
+    while (prototypeParam && actualParam) {
+        checkParameterPassing(prototypeParam, actualParam);
+        if (actualParam->dataType == ERROR_TYPE)
+            functionCallNode->dataType = ERROR_TYPE;
+        prototypeParam = prototypeParam->next;
+        actualParam = actualParam->rightSibling;
+    }
+
+    if (prototypeParam == NULL && actualParam != NULL) {
+        printErrorMsg(funcNameNode, TOO_MANY_ARGUMENTS);
+        functionCallNode->dataType = ERROR_TYPE;
+    } else if (prototypeParam != NULL && actualParam == NULL) {
+        printErrorMsg(funcNameNode, TOO_FEW_ARGUMENTS);
+        functionCallNode->dataType = ERROR_TYPE;
+    }
 }
 
-void checkParameterPassing(Parameter* formalParameter, AST_NODE* actualParameter)
+void checkParameterPassing(Parameter* prototypeParameter, AST_NODE* actualParameter)
 {
+    TypeDescriptor *prototypeType = prototypeParameter->type;
+    if (actualParameter->dataType == CONST_STRING_TYPE) {
+        printErrorMsg(actualParameter, PARAMETER_TYPE_UNMATCH);
+        actualParameter->dataType = ERROR_TYPE;
+        return;
+    }
+    if (prototypeType->kind == ARRAY_TYPE_DESCRIPTOR) {
+        if (actualParameter->dataType != INT_PTR_TYPE && actualParameter->dataType != FLOAT_PTR_TYPE) {
+            printErrorMsgSpecial(actualParameter, prototypeParameter->parameterName,
+                                 PASS_SCALAR_TO_ARRAY);
+            actualParameter->dataType = ERROR_TYPE;
+        }
+    } else {  // SCALAR_TYPE_DESCRIPTOR
+        if (actualParameter->dataType == INT_PTR_TYPE || actualParameter->dataType == FLOAT_PTR_TYPE) {
+            printErrorMsgSpecial(actualParameter, prototypeParameter->parameterName,
+                                 PASS_ARRAY_TO_SCALAR);
+            actualParameter->dataType = ERROR_TYPE;
+        }
+    }
 }
 
 
@@ -782,11 +842,18 @@ void processVariableRValue(AST_NODE* idNode)
     switch (idNode->semantic_value.identifierSemanticValue.kind) {
         case NORMAL_ID:
             if (typeDescriptor->kind == ARRAY_TYPE_DESCRIPTOR) {
-                printErrorMsg(idNode, INCOMPATIBLE_ARRAY_DIMENSION);
-                idNode->dataType = ERROR_TYPE;
+                switch (typeDescriptor->properties.arrayProperties.elementType) {
+                    case INT_TYPE:
+                        idNode->dataType = INT_PTR_TYPE;
+                        break;
+                    case FLOAT_TYPE:
+                        idNode->dataType = FLOAT_PTR_TYPE;
+                        break;
+                }
                 break;
+            } else {
+                idNode->dataType = typeDescriptor->properties.dataType;
             }
-            idNode->dataType = typeDescriptor->properties.dataType;
             break;
         case ARRAY_ID:
             if (typeDescriptor->kind == SCALAR_TYPE_DESCRIPTOR) {
@@ -795,16 +862,11 @@ void processVariableRValue(AST_NODE* idNode)
                 break;
             }
             processArraySubscript(idNode, typeDescriptor);
-            if (idNode->dataType == INT_PTR_TYPE || idNode->dataType == FLOAT_PTR_TYPE) {
-                printErrorMsg(idNode, INCOMPATIBLE_ARRAY_DIMENSION);
-                idNode->dataType = ERROR_TYPE;
-            }
             break;
         default:
             fprintf(stderr, "Internal Error: unexpected id node kind\n");
     }
 }
-
 
 void processConstValueNode(AST_NODE* constValueNode)
 {
@@ -873,7 +935,6 @@ void checkReturnStmt(AST_NODE* returnNode)
     }
 }
 
-
 void processBlockNode(AST_NODE* blockNode)
 {
     openNewScope();
@@ -886,7 +947,6 @@ void processBlockNode(AST_NODE* blockNode)
 
     closeCurrentScope();
 }
-
 
 void processStmtNode(AST_NODE* stmtNode)
 {
@@ -1041,8 +1101,10 @@ Parameter* appendParameter(Parameter* paramList, AST_NODE* paramNode)
     if (paramList == NULL) {
         return newNode;
     } else {
-        for (; paramList->next != NULL; paramList = paramList->next);
-        paramList->next = newNode;
+        Parameter *tail = paramList;
+        for (; tail->next != NULL; tail = tail->next);
+        tail->next = newNode;
+        return paramList;
     }
 }
 

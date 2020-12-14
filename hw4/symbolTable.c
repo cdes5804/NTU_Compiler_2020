@@ -163,6 +163,7 @@ SymbolTableEntry* insertSymbol(char* symbolName, SymbolAttribute* attribute)
     insertIntoHashChain(hashIndex, newEntry);
     newEntry->nextInSameLevel = symbolTable.scopeStack->scopeStart;
     symbolTable.scopeStack->scopeStart = newEntry;
+    return newEntry;
 }
 
 //remove the symbol from the current scope
