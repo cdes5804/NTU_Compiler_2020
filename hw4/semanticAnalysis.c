@@ -829,10 +829,48 @@ void processConstValueNode(AST_NODE* constValueNode)
     }
 }
 
+DATA_TYPE getReturnType(AST_NODE* node)
+{
+    for (; node; node = node->parent) {
+        if (node->nodeType == DECLARATION_NODE &&
+            node->semantic_value.declSemanticValue.kind == FUNCTION_DECL) {
+            break;
+        }
+    }
+
+    char *funcName = getIdName(node->child->rightSibling);
+    SymbolTableEntry *symtabEntry = retrieveSymbol(funcName);
+    if (symtabEntry == NULL) {
+        fprintf(stderr, "Internal Error: function name not inserted in symbol table\n");
+        return ERROR_TYPE;
+    }
+
+    return symtabEntry->attribute->attr.functionSignature->returnType;
+}
 
 void checkReturnStmt(AST_NODE* returnNode)
 {
-    
+    DATA_TYPE correctReturnType = getReturnType(returnNode);
+    if (correctReturnType == ERROR_TYPE)
+        return;
+
+    if (correctReturnType == VOID_TYPE) {
+        if (returnNode->child->nodeType != NUL_NODE) {
+            printErrorMsg(returnNode, RETURN_TYPE_UNMATCH);
+            returnNode->dataType = ERROR_TYPE;
+        }
+    } else if (returnNode->child->nodeType == NUL_NODE) {
+        // return no value in function returning non-void
+        printErrorMsg(returnNode, RETURN_TYPE_UNMATCH);
+        returnNode->dataType = ERROR_TYPE;
+    } else {
+        processExprRelatedNode(returnNode->child);
+        if (returnNode->child->dataType == ERROR_TYPE) {
+            returnNode->dataType = ERROR_TYPE;
+        } else if (returnNode->child->dataType != correctReturnType) {
+            // type coercion happens but no error generated
+        }
+    }
 }
 
 
