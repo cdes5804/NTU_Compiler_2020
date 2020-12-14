@@ -611,6 +611,47 @@ void processGeneralNode(AST_NODE* node)
 
 void processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ignoreFirstDimSize)
 {
+    AST_NODE *dimNode = idNode->child;
+    int dimension = 0;
+    int *dimSize = typeDescriptor->properties.arrayProperties.sizeInEachDimension;
+    for (; dimNode != NULL; dimNode = dimNode->rightSibling, ++dimension) {
+        if (dimension == 0 && ignoreFirstDimSize && dimNode->nodeType == NUL_NODE) {
+            dimSize[0] = 0;
+            continue;
+        }
+        
+        processExprRelatedNode(dimNode);
+        
+        if (dimNode->dataType == ERROR_TYPE) {
+            idNode->dataType = ERROR_TYPE;
+            return;
+        } else if (dimNode->dataType != INT_TYPE) {
+            printErrorMsg(idNode, ARRAY_SIZE_NOT_INT);
+            idNode->dataType = ERROR_TYPE;
+            return;
+        }
+
+        switch (dimNode->nodeType) {
+            case CONST_VALUE_NODE:
+                dimSize[dimension] = dimNode->semantic_value.const1->const_u.intval;
+                if (dimSize[dimension] < 0) {
+                    printErrorMsg(idNode, ARRAY_SIZE_NEGATIVE);
+                    idNode->dataType = ERROR_TYPE;
+                }
+                break;
+            case EXPR_NODE:
+                if (dimNode->semantic_value.exprSemanticValue.isConstEval) {
+                    dimSize[dimension] = dimNode->semantic_value.exprSemanticValue.constEvalValue.iValue;
+                } else {
+                    /* TODO handle non-const array size declaration */
+                    dimSize[dimension] = -1;
+                }
+                break;
+            default:
+                fprintf(stderr, "Internal Error: unexpected node type in dimension declaration\n");
+                break;
+        }
+    }
 }
 
 
