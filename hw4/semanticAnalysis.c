@@ -53,6 +53,7 @@ typedef enum ErrorMsgKind
     INCOMPATIBLE_ARRAY_DIMENSION,
     NOT_ASSIGNABLE,
     NOT_ARRAY,
+    ASSIGN_TO_ARRAY,
     IS_TYPE_NOT_VARIABLE,
     IS_FUNCTION_NOT_VARIABLE,
     STRING_OPERATION,
@@ -155,6 +156,9 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
             break;
         case NOT_ARRAY:
             printf("subscripted value is neither array nor pointer nor vector\n");
+            break;
+        case ASSIGN_TO_ARRAY:
+            printf("assignment to expression with array type\n");
             break;
         case IS_TYPE_NOT_VARIABLE:
             printf("identifier \'%s\' is a type, not a variable\n",
@@ -648,13 +652,130 @@ void processExprNode(AST_NODE* exprNode)
     }
 }
 
+void processArraySubscript(AST_NODE* idNode, TypeDescriptor *typeDescriptor)
+{
+    AST_NODE *dimNode = idNode->child;
+    int dimension = 0;
+    for (; dimNode != NULL; dimNode = dimNode->rightSibling, ++dimension) {
+        if (dimension >= typeDescriptor->properties.arrayProperties.dimension) {
+            printErrorMsg(idNode, NOT_ARRAY);
+            idNode->dataType = ERROR_TYPE;
+            return;
+        }
+
+        processExprRelatedNode(dimNode);
+        if (dimNode->dataType == ERROR_TYPE) {
+            idNode->dataType = ERROR_TYPE;
+            break;
+        }
+        if (dimNode->dataType != INT_TYPE) {
+            printErrorMsg(idNode, ARRAY_SUBSCRIPT_NOT_INT);
+            idNode->dataType = ERROR_TYPE;
+            break;
+        }
+    }
+    if (dimension < typeDescriptor->properties.arrayProperties.dimension) {
+        if (typeDescriptor->properties.arrayProperties.elementType == FLOAT_TYPE)
+            idNode->dataType = FLOAT_PTR_TYPE;
+        else
+            idNode->dataType = INT_PTR_TYPE;
+    } else {
+        idNode->dataType = typeDescriptor->properties.arrayProperties.elementType;
+    }
+}
 
 void processVariableLValue(AST_NODE* idNode)
 {
+    SymbolTableEntry *symtabEntry = retrieveSymbol(getIdName(idNode));
+    idNode->semantic_value.identifierSemanticValue.symbolTableEntry = symtabEntry;
+    if (symtabEntry == NULL) {
+        printErrorMsg(idNode, SYMBOL_UNDECLARED);
+        idNode->dataType = ERROR_TYPE;
+        return;
+    }
+    if (symtabEntry->attribute->attributeKind == TYPE_ATTRIBUTE) {
+        printErrorMsg(idNode, IS_TYPE_NOT_VARIABLE);
+        idNode->dataType = ERROR_TYPE;
+        return;
+    }
+    if (symtabEntry->attribute->attributeKind == FUNCTION_SIGNATURE) {
+        printErrorMsg(idNode, IS_FUNCTION_NOT_VARIABLE);
+        idNode->dataType = ERROR_TYPE;
+        return;
+    }
+
+    TypeDescriptor *typeDescriptor = symtabEntry->attribute->attr.typeDescriptor;
+    switch (idNode->semantic_value.identifierSemanticValue.kind) {
+        case NORMAL_ID:
+            if (typeDescriptor->kind == ARRAY_TYPE_DESCRIPTOR) {
+                printErrorMsg(idNode, ASSIGN_TO_ARRAY);
+                idNode->dataType = ERROR_TYPE;
+                break;
+            }
+            idNode->dataType = typeDescriptor->properties.dataType;
+            break;
+        case ARRAY_ID:
+            if (typeDescriptor->kind == SCALAR_TYPE_DESCRIPTOR) {
+                printErrorMsg(idNode, NOT_ARRAY);
+                idNode->dataType = ERROR_TYPE;
+                break;
+            }
+            processArraySubscript(idNode, typeDescriptor);
+            if (idNode->dataType == INT_PTR_TYPE || idNode->dataType == FLOAT_PTR_TYPE) {
+                printErrorMsg(idNode, ASSIGN_TO_ARRAY);
+                idNode->dataType = ERROR_TYPE;
+            }
+            break;
+        default:
+            fprintf(stderr, "Internal Error: unexpected id node kind\n");
+    }
 }
 
 void processVariableRValue(AST_NODE* idNode)
 {
+    SymbolTableEntry *symtabEntry = retrieveSymbol(getIdName(idNode));
+    idNode->semantic_value.identifierSemanticValue.symbolTableEntry = symtabEntry;
+    if (symtabEntry == NULL) {
+        printErrorMsg(idNode, SYMBOL_UNDECLARED);
+        idNode->dataType = ERROR_TYPE;
+        return;
+    }
+    if (symtabEntry->attribute->attributeKind == TYPE_ATTRIBUTE) {
+        printErrorMsg(idNode, IS_TYPE_NOT_VARIABLE);
+        idNode->dataType = ERROR_TYPE;
+        return;
+    }
+    if (symtabEntry->attribute->attributeKind == FUNCTION_SIGNATURE) {
+        printErrorMsg(idNode, IS_FUNCTION_NOT_VARIABLE);
+        idNode->dataType = ERROR_TYPE;
+        return;
+    }
+
+    TypeDescriptor *typeDescriptor = symtabEntry->attribute->attr.typeDescriptor;
+    switch (idNode->semantic_value.identifierSemanticValue.kind) {
+        case NORMAL_ID:
+            if (typeDescriptor->kind == ARRAY_TYPE_DESCRIPTOR) {
+                printErrorMsg(idNode, INCOMPATIBLE_ARRAY_DIMENSION);
+                idNode->dataType = ERROR_TYPE;
+                break;
+            }
+            idNode->dataType = typeDescriptor->properties.dataType;
+            break;
+        case ARRAY_ID:
+            if (typeDescriptor->kind == SCALAR_TYPE_DESCRIPTOR) {
+                printErrorMsg(idNode, NOT_ARRAY);
+                idNode->dataType = ERROR_TYPE;
+                break;
+            }
+            processArraySubscript(idNode, typeDescriptor);
+            if (idNode->dataType == INT_PTR_TYPE || idNode->dataType == FLOAT_PTR_TYPE) {
+                printErrorMsg(idNode, INCOMPATIBLE_ARRAY_DIMENSION);
+                idNode->dataType = ERROR_TYPE;
+            }
+            break;
+        default:
+            fprintf(stderr, "Internal Error: unexpected id node kind\n");
+    }
 }
 
 

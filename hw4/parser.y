@@ -424,6 +424,18 @@ cfactor:	CONST
                 {
                     $$ = $2;
                 }
+            | OP_MINUS CONST
+                {
+                    $$ = makeExprNode(UNARY_OPERATION, UNARY_OP_NEGATIVE);
+                    AST_NODE *const_node = Allocate(CONST_VALUE_NODE);
+                    const_node->semantic_value.const1 = $2;
+                    makeChild($$, const_node);
+                }
+            | OP_MINUS MK_LPAREN cexpr MK_RPAREN
+                {
+                    $$ = makeExprNode(UNARY_OPERATION, UNARY_OP_NEGATIVE);
+                    makeChild($$, $3);
+                }
             ;
 
 init_id_list	: init_id 
