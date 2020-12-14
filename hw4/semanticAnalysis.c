@@ -710,6 +710,10 @@ void processExprNode(AST_NODE* exprNode)
                 exprNode->dataType = ERROR_TYPE;
             } else if (leftOperand->dataType == ERROR_TYPE || rightOperand->dataType == ERROR_TYPE) {
                 exprNode->dataType = ERROR_TYPE;
+            } else if (leftOperand->dataType == INT_PTR_TYPE || rightOperand->dataType == INT_PTR_TYPE ||
+                       leftOperand->dataType == FLOAT_PTR_TYPE || rightOperand->dataType == FLOAT_PTR_TYPE) {
+                printErrorMsg(exprNode, INCOMPATIBLE_ARRAY_DIMENSION);
+                exprNode->dataType = ERROR_TYPE;
             } else {
                 exprNode->dataType = getBiggerType(leftOperand->dataType, rightOperand->dataType);
                 if (isConstExpression(leftOperand) && isConstExpression(rightOperand)) {
