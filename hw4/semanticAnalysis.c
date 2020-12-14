@@ -276,7 +276,6 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
     AST_NODE *idNode = declarationNode->child->rightSibling;
 
     for (; idNode != NULL; idNode = idNode->rightSibling) {
-        idNode->dataType = typeNode->dataType;
         IdentifierSemanticValue semanticValue = idNode->semantic_value.identifierSemanticValue;
 
         // detect redeclaration error
@@ -301,9 +300,17 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
         symbolAttribute->attributeKind = isVariableOrTypeAttribute;
         switch (idNode->semantic_value.identifierSemanticValue.kind) {
             case NORMAL_ID:
+                idNode->dataType = typeNode->dataType;
                 symbolAttribute->attr.typeDescriptor = typeDescriptor_typeNode;
                 break;
             case ARRAY_ID:
+                if (typeNode->dataType == INT_TYPE)
+                    idNode->dataType = INT_PTR_TYPE;
+                else if (typeNode->dataType == FLOAT_TYPE)
+                    idNode->dataType = FLOAT_PTR_TYPE;
+                else
+                    idNode->dataType = typeNode->dataType;
+                
                 // detect "typedef void array"
                 if (typeNode->dataType == VOID_TYPE && isVariableOrTypeAttribute == TYPE_ATTRIBUTE) {
                     printErrorMsg(idNode, TYPEDEF_VOID_ARRAY);
@@ -335,6 +342,7 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
                     typeDescriptor_typeNode->properties.arrayProperties.elementType;
                 break;
             case WITH_INIT_ID:
+                idNode->dataType = typeNode->dataType;
                 if (typeDescriptor_typeNode->kind == ARRAY_TYPE_DESCRIPTOR) {
                     printErrorMsg(idNode, TRY_TO_INIT_ARRAY);
                     idNode->dataType = ERROR_TYPE;
@@ -466,15 +474,178 @@ void processExprRelatedNode(AST_NODE* exprRelatedNode)
 
 void getExprOrConstValue(AST_NODE* exprOrConstNode, int* iValue, float* fValue)
 {
+    if (exprOrConstNode->nodeType == CONST_VALUE_NODE) {
+        if (exprOrConstNode->dataType == INT_TYPE) {
+            *iValue = exprOrConstNode->semantic_value.const1->const_u.intval;
+            *fValue = exprOrConstNode->semantic_value.const1->const_u.intval;
+        } else if (exprOrConstNode->dataType == FLOAT_TYPE) {
+            *iValue = exprOrConstNode->semantic_value.const1->const_u.fval;
+            *fValue = exprOrConstNode->semantic_value.const1->const_u.fval;
+        } else {
+            fprintf(stderr, "Internal Error: unexpected data type in getExprOrConstValue\n");
+        }
+    } else if (exprOrConstNode->nodeType == EXPR_NODE) {
+        if (exprOrConstNode->dataType == INT_TYPE) {
+            *iValue = exprOrConstNode->semantic_value.exprSemanticValue.constEvalValue.iValue;
+            *fValue = exprOrConstNode->semantic_value.exprSemanticValue.constEvalValue.iValue;
+        } else if (exprOrConstNode->dataType == FLOAT_TYPE) {
+            *iValue = exprOrConstNode->semantic_value.exprSemanticValue.constEvalValue.fValue;
+            *fValue = exprOrConstNode->semantic_value.exprSemanticValue.constEvalValue.fValue;
+        } else {
+            fprintf(stderr, "Internal Error: unexpected data type in getExprOrConstValue\n");
+        }
+    } else {
+        fprintf(stderr, "Internal Error: unexpected node type in getExprOrConstValue\n");
+    }
 }
 
 void evaluateExprValue(AST_NODE* exprNode)
 {
+    int iResult = 0, ilhs = 0, irhs = 0;
+    float fResult = 0.0, flhs = 0.0, frhs = 0.0;
+    AST_NODE *leftOperand, *rightOperand;
+    switch (exprNode->semantic_value.exprSemanticValue.kind) {
+        case BINARY_OPERATION:
+            leftOperand = exprNode->child;
+            rightOperand = exprNode->child->rightSibling;
+            getExprOrConstValue(leftOperand, &ilhs, &flhs);
+            getExprOrConstValue(rightOperand, &irhs, &frhs);
+            
+            switch (exprNode->semantic_value.exprSemanticValue.op.binaryOp) {
+                case BINARY_OP_ADD:
+                    iResult = ilhs + irhs;
+                    fResult = flhs + frhs;
+                    break;
+                case BINARY_OP_SUB:
+                    iResult = ilhs - irhs;
+                    fResult = flhs - frhs;
+                    break;
+                case BINARY_OP_MUL:
+                    iResult = ilhs * irhs;
+                    fResult = flhs * frhs;
+                    break;
+                case BINARY_OP_DIV:
+                    iResult = ilhs / irhs;
+                    fResult = flhs / frhs;
+                    break;
+                case BINARY_OP_EQ:
+                    iResult = ilhs == irhs;
+                    fResult = flhs == frhs;
+                    break;
+                case BINARY_OP_GE:
+                    iResult = ilhs >= irhs;
+                    fResult = flhs >= frhs;
+                    break;
+                case BINARY_OP_LE:
+                    iResult = ilhs <= irhs;
+                    fResult = flhs <= frhs;
+                    break;
+                case BINARY_OP_NE:
+                    iResult = ilhs != irhs;
+                    fResult = flhs != frhs;
+                    break;
+                case BINARY_OP_GT:
+                    iResult = ilhs > irhs;
+                    fResult = flhs > frhs;
+                    break;
+                case BINARY_OP_LT:
+                    iResult = ilhs < irhs;
+                    fResult = flhs < frhs;
+                    break;
+                case BINARY_OP_AND:
+                    iResult = ilhs && irhs;
+                    fResult = flhs && frhs;
+                    break;
+                case BINARY_OP_OR:
+                    iResult = ilhs || irhs;
+                    fResult = flhs || frhs;
+                    break;
+                default:
+                    fprintf(stderr, "Internal Error: unexpected operator\n");
+                    break;
+            }
+            
+            break;
+        case UNARY_OPERATION:
+            leftOperand = exprNode->child;
+            getExprOrConstValue(leftOperand, &iResult, &fResult);
+            
+            switch (exprNode->semantic_value.exprSemanticValue.op.unaryOp) {
+                case UNARY_OP_POSITIVE:
+                    iResult = iResult;
+                    fResult = fResult;
+                    break;
+                case UNARY_OP_NEGATIVE:
+                    iResult = -iResult;
+                    fResult = -fResult;
+                    break;
+                case UNARY_OP_LOGICAL_NEGATION:
+                    iResult = !iResult;
+                    fResult = !fResult;
+                    break;
+                default:
+                    fprintf(stderr, "Internal Error: unexpected operator\n");
+                    break;
+            }
+
+            break;
+    }
+    if (exprNode->dataType == INT_TYPE) {
+        exprNode->semantic_value.exprSemanticValue.constEvalValue.iValue = iResult;
+    } else if (exprNode->dataType == FLOAT_TYPE) {
+        exprNode->semantic_value.exprSemanticValue.constEvalValue.fValue = fResult;
+    } else {
+        fprintf(stderr, "Internal Error: unexpected data type in evaluateExprValue\n");
+    }
 }
 
+int isConstExpression(AST_NODE* exprRelatedNode)
+{
+    return exprRelatedNode->nodeType == CONST_VALUE_NODE || 
+           (exprRelatedNode->nodeType == EXPR_NODE && exprRelatedNode->semantic_value.exprSemanticValue.isConstEval);
+}
 
 void processExprNode(AST_NODE* exprNode)
 {
+    AST_NODE *leftOperand, *rightOperand;
+    switch (exprNode->semantic_value.exprSemanticValue.kind) {
+        case BINARY_OPERATION:
+            leftOperand = exprNode->child;
+            rightOperand = exprNode->child->rightSibling;
+            processExprRelatedNode(leftOperand);
+            processExprRelatedNode(rightOperand);
+            if (leftOperand->dataType == CONST_STRING_TYPE || rightOperand->dataType == CONST_STRING_TYPE) {
+                printErrorMsg(exprNode, STRING_OPERATION);
+                exprNode->dataType = ERROR_TYPE;
+            } else if (leftOperand->dataType == ERROR_TYPE || rightOperand->dataType == ERROR_TYPE) {
+                exprNode->dataType = ERROR_TYPE;
+            } else {
+                exprNode->dataType = getBiggerType(leftOperand->dataType, rightOperand->dataType);
+                if (isConstExpression(leftOperand) && isConstExpression(rightOperand)) {
+                    evaluateExprValue(exprNode);
+                    exprNode->semantic_value.exprSemanticValue.isConstEval = 1;
+                }
+            }
+            break;
+        case UNARY_OPERATION:
+            leftOperand = exprNode->child;
+            processExprRelatedNode(leftOperand);
+            if (leftOperand->dataType == CONST_STRING_TYPE) {
+                printErrorMsg(exprNode, STRING_OPERATION);
+                exprNode->dataType = ERROR_TYPE;
+            } else if (leftOperand->dataType == ERROR_TYPE) {
+                exprNode->dataType = ERROR_TYPE;
+            } else {
+                exprNode->dataType = leftOperand->dataType;
+                if (isConstExpression(leftOperand)) {
+                    evaluateExprValue(exprNode);
+                    exprNode->semantic_value.exprSemanticValue.isConstEval = 1;
+                }
+            }
+            break;
+        default:
+            fprintf(stderr, "Internal Error: unexpected expression kind\n");
+    }
 }
 
 
@@ -615,6 +786,12 @@ void processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ig
     int dimension = 0;
     int *dimSize = typeDescriptor->properties.arrayProperties.sizeInEachDimension;
     for (; dimNode != NULL; dimNode = dimNode->rightSibling, ++dimension) {
+        if (dimension >= MAX_ARRAY_DIMENSION) {
+            idNode->dataType = ERROR_TYPE;
+            printErrorMsg(idNode, EXCESSIVE_ARRAY_DIM_DECLARATION);
+            break;
+        }
+
         if (dimension == 0 && ignoreFirstDimSize && dimNode->nodeType == NUL_NODE) {
             dimSize[0] = 0;
             continue;
@@ -634,22 +811,22 @@ void processDeclDimList(AST_NODE* idNode, TypeDescriptor* typeDescriptor, int ig
         switch (dimNode->nodeType) {
             case CONST_VALUE_NODE:
                 dimSize[dimension] = dimNode->semantic_value.const1->const_u.intval;
-                if (dimSize[dimension] < 0) {
-                    printErrorMsg(idNode, ARRAY_SIZE_NEGATIVE);
-                    idNode->dataType = ERROR_TYPE;
-                }
                 break;
             case EXPR_NODE:
                 if (dimNode->semantic_value.exprSemanticValue.isConstEval) {
                     dimSize[dimension] = dimNode->semantic_value.exprSemanticValue.constEvalValue.iValue;
                 } else {
                     /* TODO handle non-const array size declaration */
-                    dimSize[dimension] = -1;
+                    dimSize[dimension] = 0;
                 }
                 break;
             default:
                 fprintf(stderr, "Internal Error: unexpected node type in dimension declaration\n");
                 break;
+        }
+        if (dimSize[dimension] < 0) {
+            printErrorMsg(idNode, ARRAY_SIZE_NEGATIVE);
+            idNode->dataType = ERROR_TYPE;
         }
     }
 }
