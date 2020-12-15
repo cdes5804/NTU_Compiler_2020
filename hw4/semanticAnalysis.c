@@ -505,6 +505,59 @@ void checkIfStmt(AST_NODE* ifNode)
 
 void checkWriteFunction(AST_NODE* functionCallNode)
 {
+    AST_NODE* funcNameNode = functionCallNode->child;
+    AST_NODE* parameterListNode = funcNameNode->rightSibling;
+
+    processGeneralNode(parameterListNode);
+    
+    AST_NODE* parameterNode = parameterListNode->child;
+
+    int parameterCount = 0;
+
+    while (parameterNode) {
+        parameterCount += 1;
+        if (parameterNode->dataType == ERROR_TYPE) {
+            functionCallNode->dataType = ERROR_TYPE;
+        } else if (
+            parameterNode->dataType != INT_TYPE &&
+            parameterNode->dataType != FLOAT_TYPE &&
+            parameterNode->dataType != CONST_STRING_TYPE) {
+            printErrorMsg(parameterNode, PARAMETER_TYPE_UNMATCH);
+            functionCallNode->dataType = ERROR_TYPE;
+        }
+        parameterNode = parameterNode->rightSibling;
+    }
+
+    if (parameterCount > 1) {
+        printErrorMsg(funcNameNode, TOO_MANY_ARGUMENTS);
+        functionCallNode->dataType = ERROR_TYPE;
+    } else if (parameterCount < 1) {
+        printErrorMsg(funcNameNode, TOO_FEW_ARGUMENTS);
+        functionCallNode->dataType = ERROR_TYPE;
+    } else {
+        functionCallNode->dataType = VOID_TYPE;
+    }
+}
+
+void checkReadAndFreadFunction(AST_NODE* functionCallNode, DATA_TYPE readType)
+{
+    AST_NODE* funcNameNode = functionCallNode->child;
+    AST_NODE* parameterListNode = funcNameNode->rightSibling;
+    AST_NODE* parameterNode = parameterListNode->child;
+
+    int parameterCount = 0;
+
+    while (parameterNode) {
+        parameterCount += 1;
+        parameterNode = parameterNode->rightSibling;
+    }
+
+    if (parameterCount > 0) {
+        printErrorMsg(funcNameNode, TOO_MANY_ARGUMENTS);
+        functionCallNode->dataType = ERROR_TYPE;
+    } else {
+        functionCallNode->dataType = readType;
+    }
 }
 
 void checkFunctionCall(AST_NODE* functionCallNode)
@@ -512,7 +565,23 @@ void checkFunctionCall(AST_NODE* functionCallNode)
     AST_NODE *funcNameNode = functionCallNode->child;
     AST_NODE *relopExprListNode = funcNameNode->rightSibling;
 
-    SymbolTableEntry *symtabEntry = retrieveSymbol(getIdName(funcNameNode));
+    char* functionName = getIdName(funcNameNode);
+
+    /* special functions */
+    if (strcmp(functionName, "write") == 0) {
+        checkWriteFunction(functionCallNode);
+        return;
+    }
+    if (strcmp(functionName, "read") == 0) {
+        checkReadAndFreadFunction(functionCallNode, INT_TYPE);
+        return;
+    }
+    if (strcmp(functionName, "fread") == 0) {
+        checkReadAndFreadFunction(functionCallNode, FLOAT_TYPE);
+        return;
+    }
+
+    SymbolTableEntry *symtabEntry = retrieveSymbol(functionName);
     if (symtabEntry == NULL) {
         printErrorMsg(funcNameNode, SYMBOL_UNDECLARED);
         functionCallNode->dataType = ERROR_TYPE;
