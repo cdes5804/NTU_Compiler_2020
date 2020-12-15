@@ -430,7 +430,7 @@ void checkForStmt(AST_NODE* forNode)
     AST_NODE* initExpr = forNode->child;
     AST_NODE* conditionExpr = initExpr->rightSibling;
     AST_NODE* updateExpr = conditionExpr->rightSibling;
-    AST_NODE* bodyNode = conditionExpr->rightSibling;
+    AST_NODE* bodyNode = updateExpr->rightSibling;
 
     processGeneralNode(initExpr);
     processGeneralNode(conditionExpr);

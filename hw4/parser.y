@@ -334,6 +334,12 @@ type_decl 	: TYPEDEF type id_list MK_SEMICOLON
                     AST_NODE* voidNode = makeIDNode("void", NORMAL_ID);
                     makeFamily($$, 2, voidNode, $3);
                 }
+            | TYPEDEF ID id_list MK_SEMICOLON
+                {
+                    $$ = makeDeclNode(TYPE_DECL);
+                    AST_NODE* idNode = makeIDNode($2, NORMAL_ID);
+                    makeFamily($$, 2, idNode, $3);
+                }
             ;
 
 var_decl	: type init_id_list MK_SEMICOLON 
