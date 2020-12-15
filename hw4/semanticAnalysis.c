@@ -512,7 +512,6 @@ void checkWriteFunction(AST_NODE* functionCallNode)
     processGeneralNode(parameterListNode);
     
     AST_NODE* parameterNode = parameterListNode->child;
-
     int parameterCount = 0;
 
     while (parameterNode) {
@@ -544,7 +543,26 @@ void checkReadAndFreadFunction(AST_NODE* functionCallNode, DATA_TYPE readType)
 {
     AST_NODE* funcNameNode = functionCallNode->child;
     AST_NODE* parameterListNode = funcNameNode->rightSibling;
+
+    processGeneralNode(parameterListNode);
+
     AST_NODE* parameterNode = parameterListNode->child;
+    int parameterCount = 0;
+
+    while (parameterNode) {
+        parameterCount += 1;
+        if (parameterNode->dataType == ERROR_TYPE) {
+            functionCallNode->dataType = ERROR_TYPE;
+        }
+        parameterNode = parameterNode->rightSibling;
+    }
+
+    if (parameterCount > 0) {
+        printErrorMsg(funcNameNode, TOO_MANY_ARGUMENTS);
+        functionCallNode->dataType = ERROR_TYPE;
+    } else {
+        functionCallNode->dataType = readType;
+    }
 
     if (parameterNode) {
         printErrorMsg(funcNameNode, TOO_MANY_ARGUMENTS);
