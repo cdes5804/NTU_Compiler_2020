@@ -546,14 +546,7 @@ void checkReadAndFreadFunction(AST_NODE* functionCallNode, DATA_TYPE readType)
     AST_NODE* parameterListNode = funcNameNode->rightSibling;
     AST_NODE* parameterNode = parameterListNode->child;
 
-    int parameterCount = 0;
-
-    while (parameterNode) {
-        parameterCount += 1;
-        parameterNode = parameterNode->rightSibling;
-    }
-
-    if (parameterCount > 0) {
+    if (parameterNode) {
         printErrorMsg(funcNameNode, TOO_MANY_ARGUMENTS);
         functionCallNode->dataType = ERROR_TYPE;
     } else {
