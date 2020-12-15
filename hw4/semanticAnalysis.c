@@ -23,6 +23,7 @@ void checkForStmt(AST_NODE* forNode);
 void checkAssignmentStmt(AST_NODE* assignmentNode);
 void checkIfStmt(AST_NODE* ifNode);
 void checkWriteFunction(AST_NODE* functionCallNode);
+void checkReadAndFreadFunction(AST_NODE* functionCallNode, DATA_TYPE readType);
 void checkFunctionCall(AST_NODE* functionCallNode);
 void processExprRelatedNode(AST_NODE* exprRelatedNode);
 void checkParameterPassing(Parameter* formalParameter, AST_NODE* actualParameter);
