@@ -63,7 +63,7 @@ typedef enum ErrorMsgKind
     PASS_ARRAY_TO_SCALAR,
     PASS_SCALAR_TO_ARRAY,
     NON_CONST_GLOBAL_INITIALIZATION,
-    TYPE_REDECLARE,
+    TYPE_CONFLICT,
 } ErrorMsgKind;
 
 char* getIdName(AST_NODE* node) {
@@ -197,7 +197,7 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
         case NON_CONST_GLOBAL_INITIALIZATION:
             printf("initializer element is not constant in global scope\n");
             break;
-        case TYPE_REDECLARE:
+        case TYPE_CONFLICT:
             printf("conflicting types for \'%s\'\n",
                    getIdName(node));
             break;
@@ -294,6 +294,35 @@ void processTypeNode(AST_NODE* idNodeAsType)
     }
 }
 
+int checkTypeConflict(char* idName, TypeDescriptor* curTypeDescriptor)
+{
+    SymbolTableEntry *symtab_lookup = retrieveSymbol(idName);
+    if (symtab_lookup == NULL || symtab_lookup->attribute->attributeKind != TYPE_ATTRIBUTE) {
+        fprintf(stderr, "Internal Error: checkTypeConflict\n");
+        return 0;
+    }
+    TypeDescriptor *originalTypeDescriptor = symtab_lookup->attribute->attr.typeDescriptor;
+    if (curTypeDescriptor->kind != originalTypeDescriptor->kind)
+        return 1;
+    if (curTypeDescriptor->kind == SCALAR_TYPE_DESCRIPTOR) {
+        if (curTypeDescriptor->properties.dataType != originalTypeDescriptor->properties.dataType)
+            return 1;
+    } else {
+        if (curTypeDescriptor->properties.arrayProperties.dimension != 
+            originalTypeDescriptor->properties.arrayProperties.dimension)
+                return 1;
+        if (curTypeDescriptor->properties.arrayProperties.elementType !=
+            originalTypeDescriptor->properties.arrayProperties.elementType)
+                return 1;
+        for (int d = 0; d < curTypeDescriptor->properties.arrayProperties.dimension; d++) {
+            if (curTypeDescriptor->properties.arrayProperties.sizeInEachDimension[d] !=
+                originalTypeDescriptor->properties.arrayProperties.sizeInEachDimension[d])
+                    return 1;
+        }
+    }
+    return 0;
+}
+
 void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTypeAttribute, int ignoreArrayFirstDimSize)
 {
     AST_NODE *typeNode = declarationNode->child;
@@ -311,11 +340,9 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
         if (declaredLocally(semanticValue.identifierName)) {
             if (isVariableOrTypeAttribute == VARIABLE_ATTRIBUTE) {
                 printErrorMsg(idNode, SYMBOL_REDECLARE);
-            } else if (isVariableOrTypeAttribute == TYPE_ATTRIBUTE) {
-                printErrorMsg(idNode, TYPE_REDECLARE);
+                idNode->dataType = declarationNode->dataType = ERROR_TYPE;
+                continue;
             }
-            idNode->dataType = declarationNode->dataType = ERROR_TYPE;
-            continue;
         }
 
         // detect void variable
@@ -397,6 +424,12 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
             declarationNode->dataType = ERROR_TYPE;
             continue;
         }
+
+        if (isVariableOrTypeAttribute == TYPE_ATTRIBUTE && declaredLocally(semanticValue.identifierName) && 
+            checkTypeConflict(semanticValue.identifierName, symbolAttribute->attr.typeDescriptor)) {
+                printErrorMsg(idNode, TYPE_CONFLICT);
+                declarationNode->dataType = ERROR_TYPE;
+            }
 
         SymbolTableEntry* symtab_entry = insertSymbol(semanticValue.identifierName, symbolAttribute);
         idNode->semantic_value.identifierSemanticValue.symbolTableEntry = symtab_entry;
