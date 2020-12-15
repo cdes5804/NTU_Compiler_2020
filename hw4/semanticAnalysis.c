@@ -372,6 +372,7 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
                 if (typeNode->dataType == VOID_TYPE && isVariableOrTypeAttribute == TYPE_ATTRIBUTE) {
                     printErrorMsg(idNode, TYPEDEF_VOID_ARRAY);
                     idNode->dataType = ERROR_TYPE;
+                    continue;
                 }
 
                 TypeDescriptor *typeDescriptor_idNode = (TypeDescriptor*)malloc(sizeof(TypeDescriptor));
@@ -421,9 +422,7 @@ void declareIdList(AST_NODE* declarationNode, SymbolAttributeKind isVariableOrTy
         }
 
         if (idNode->dataType == ERROR_TYPE) {
-            free(symbolAttribute);
             declarationNode->dataType = ERROR_TYPE;
-            continue;
         }
 
         if (isVariableOrTypeAttribute == TYPE_ATTRIBUTE && declaredLocally(semanticValue.identifierName) && 
@@ -1215,23 +1214,21 @@ void declareFunction(AST_NODE* declarationNode)
     AST_NODE *paramListNode = funcNameNode->rightSibling;
     AST_NODE *blockNode = paramListNode->rightSibling;
 
+    TypeDescriptor *returnTypeDescriptor = NULL;
     if (returnTypeNode->dataType == ERROR_TYPE) {
         declarationNode->dataType = ERROR_TYPE;
-        return;
-    }
-
-    TypeDescriptor *returnTypeDescriptor = getIdNodeTypeDescriptor(returnTypeNode);
-    if (returnTypeDescriptor->kind == ARRAY_TYPE_DESCRIPTOR) {
-        printErrorMsg(returnTypeNode, RETURN_ARRAY);
-        declarationNode->dataType = ERROR_TYPE;
-        return;
+    } else {
+        returnTypeDescriptor = getIdNodeTypeDescriptor(returnTypeNode);
+        if (returnTypeDescriptor->kind == ARRAY_TYPE_DESCRIPTOR) {
+            printErrorMsg(returnTypeNode, RETURN_ARRAY);
+            declarationNode->dataType = ERROR_TYPE;
+        }
     }
 
     char *funcName = getIdName(funcNameNode);
     if (declaredLocally(funcName)) {
         printErrorMsg(funcNameNode, SYMBOL_REDECLARE);
         declarationNode->dataType = ERROR_TYPE;
-        return;
     }
 
     SymbolAttribute *attribute = (SymbolAttribute*)malloc(sizeof(SymbolAttribute));
@@ -1239,9 +1236,17 @@ void declareFunction(AST_NODE* declarationNode)
     attribute->attr.functionSignature = (FunctionSignature*)malloc(sizeof(FunctionSignature));
     attribute->attr.functionSignature->parametersCount = 0;
     attribute->attr.functionSignature->parameterList = NULL;
-    attribute->attr.functionSignature->returnType = returnTypeDescriptor->properties.dataType;
+    if (returnTypeDescriptor)
+        attribute->attr.functionSignature->returnType = returnTypeDescriptor->properties.dataType;
+    else
+        attribute->attr.functionSignature->returnType = NONE_TYPE;
 
-    insertSymbol(funcName, attribute);
+
+    int hasInsertSymbol = 0;
+    if (declarationNode->dataType != ERROR_TYPE) {
+        hasInsertSymbol = 1;
+        insertSymbol(funcName, attribute);
+    }
 
     openNewScope();
 
@@ -1273,7 +1278,8 @@ void declareFunction(AST_NODE* declarationNode)
 
     if (declarationNode->dataType == ERROR_TYPE) {
         freeFuncSignatureAttribute(attribute);
-        removeSymbol(funcName);
+        if (hasInsertSymbol)
+            removeSymbol(funcName);
     }
 }
 
