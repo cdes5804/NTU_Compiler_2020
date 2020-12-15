@@ -208,6 +208,13 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
     }
 }
 
+int checkArrayReference(AST_NODE *node)
+{
+    if (node->nodeType == IDENTIFIER_NODE)
+        return node->dataType == INT_PTR_TYPE || node->dataType == FLOAT_PTR_TYPE;
+    return 0;
+}
+
 void semanticAnalysis(AST_NODE *root)
 {
     processProgramNode(root);
@@ -1046,8 +1053,16 @@ void checkReturnStmt(AST_NODE* returnNode)
         processExprRelatedNode(returnNode->child);
         if (returnNode->child->dataType == ERROR_TYPE) {
             returnNode->dataType = ERROR_TYPE;
+        } else if (checkArrayReference(returnNode->child)) {
+            printErrorMsg(returnNode->child, INCOMPATIBLE_ARRAY_DIMENSION);
+            returnNode->dataType = ERROR_TYPE;
         } else if (returnNode->child->dataType != correctReturnType) {
-            // type coercion happens but no error generated
+            if (returnNode->child->dataType == CONST_STRING_TYPE) {
+                printErrorMsg(returnNode->child, RETURN_TYPE_UNMATCH);
+                returnNode->dataType = ERROR_TYPE;
+            } else {
+                // int to float, float to int
+            }
         }
     }
 }
@@ -1314,6 +1329,11 @@ void processInitializer(AST_NODE* idNode)
         }
     }
     
+    if (checkArrayReference(initializerNode)) {
+        printErrorMsg(initializerNode, INCOMPATIBLE_ARRAY_DIMENSION);
+        initializerNode->dataType = ERROR_TYPE;
+    }
+
     if (initializerNode->dataType == ERROR_TYPE)
         idNode->dataType = ERROR_TYPE;
 }
