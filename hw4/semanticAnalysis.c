@@ -66,6 +66,10 @@ typedef enum ErrorMsgKind
     TYPE_REDECLARE,
 } ErrorMsgKind;
 
+char* getIdName(AST_NODE* node) {
+    return node->semantic_value.identifierSemanticValue.identifierName;
+}
+
 void printErrorMsgSpecial(AST_NODE* node, char* name, ErrorMsgKind errorMsgKind)
 {
     g_anyErrorOccur = 1;
@@ -76,7 +80,7 @@ void printErrorMsgSpecial(AST_NODE* node, char* name, ErrorMsgKind errorMsgKind)
         case PASS_ARRAY_TO_SCALAR:
             if (node && node->nodeType == IDENTIFIER_NODE) {
                 printf("invalid conversion from array \'%s\' to scalar \'%s\'\n",
-                       node->semantic_value.identifierSemanticValue.identifierName, name);
+                       getIdName(node), name);
             } else {
                 printf("invalid conversion from array expression to scalar \'%s\'\n", name);
             }
@@ -84,13 +88,13 @@ void printErrorMsgSpecial(AST_NODE* node, char* name, ErrorMsgKind errorMsgKind)
         case PASS_SCALAR_TO_ARRAY:
             if (node && node->nodeType == IDENTIFIER_NODE) {
                 printf("invalid conversion from scalar \'%s\' to array \'%s\'\n",
-                       node->semantic_value.identifierSemanticValue.identifierName, name);
+                       getIdName(node), name);
             } else {
                 printf("invalid conversion from scalar expression to array \'%s\'\n", name);
             }
             break;
         default:
-            printf("Unhandled case in void printErrorMsgSpecial(AST_NODE* node, char* name, ERROR_MSG_KIND* errorMsgKind)\n");
+            fprintf(stderr, "Unhandled case in void printErrorMsgSpecial(AST_NODE* node, char* name, ERROR_MSG_KIND* errorMsgKind)\n");
             break;
     }
 }
@@ -104,40 +108,40 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
     {
         case SYMBOL_IS_NOT_TYPE:
             printf("unknown type name \'%s\'\n",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         case SYMBOL_REDECLARE:
             printf("redeclaration of \'%s\'\n",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         case SYMBOL_UNDECLARED:
             printf("identifier \'%s\' was not declared in this scope\n",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         case NOT_FUNCTION_NAME:
             printf("called object \'%s\' is not a function\n",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         case TRY_TO_INIT_ARRAY:
             printf("array \'%s\' cannot be initialized. This feature is not supported in C--\n",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         case EXCESSIVE_ARRAY_DIM_DECLARATION:
             printf("dimension of array \'%s\' exceeds maximum array dimension \'%d\'\n",
-                   node->semantic_value.identifierSemanticValue.identifierName,
+                   getIdName(node),
                    MAX_ARRAY_DIMENSION);
             break;
         case RETURN_ARRAY:
             printf("function \'%s\' cannot return array\n",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         case VOID_VARIABLE:
             printf("variable \'%s\' declared void\n",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         case TYPEDEF_VOID_ARRAY:
             printf("declaration of \'%s\' as array of voids\n",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         case PARAMETER_TYPE_UNMATCH:
             /* Because of type coercion in C, this error might be unnecessary */
@@ -145,11 +149,11 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
             break;
         case TOO_FEW_ARGUMENTS:
             printf("too few arguments to function \'%s\'\n",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         case TOO_MANY_ARGUMENTS:
             printf("too many arguments to function \'%s\'\n",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         case RETURN_TYPE_UNMATCH:
             /* Because of type coercion in c, this error only happens if it returns something in void function */
@@ -160,7 +164,7 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
             break;
         case NOT_ASSIGNABLE:
             printf("\'%s\' is not assignable",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         case NOT_ARRAY:
             printf("subscripted value is neither array nor pointer nor vector\n");
@@ -170,22 +174,22 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
             break;
         case IS_TYPE_NOT_VARIABLE:
             printf("identifier \'%s\' is a type, not a variable\n",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         case IS_FUNCTION_NOT_VARIABLE:
             printf("identifier \'%s\' is a function, not a variable\n",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         case STRING_OPERATION:
             printf("string operation is not supported in C--\n");
             break;
         case ARRAY_SIZE_NOT_INT:
             printf("size of array \'%s\' is not an integer\n",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         case ARRAY_SIZE_NEGATIVE:
             printf("size of array \'%s\' is negative\n",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         case ARRAY_SUBSCRIPT_NOT_INT:
             printf("array subscript is not an integer\n");
@@ -195,7 +199,7 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
             break;
         case TYPE_REDECLARE:
             printf("conflicting types for \'%s\'\n",
-                   node->semantic_value.identifierSemanticValue.identifierName);
+                   getIdName(node));
             break;
         default:
             printf("Unhandled case in void printErrorMsg(AST_NODE* node, ERROR_MSG_KIND* errorMsgKind)\n");
@@ -215,10 +219,6 @@ DATA_TYPE getBiggerType(DATA_TYPE dataType1, DATA_TYPE dataType2)
     } else {
         return INT_TYPE;
     }
-}
-
-char* getIdName(AST_NODE* node) {
-    return node->semantic_value.identifierSemanticValue.identifierName;
 }
 
 TypeDescriptor* getIdNodeTypeDescriptor(AST_NODE* idNode)
@@ -268,7 +268,7 @@ void processDeclarationNode(AST_NODE* declarationNode)
 
 void processTypeNode(AST_NODE* idNodeAsType)
 {
-    SymbolTableEntry *symtab_lookup = retrieveSymbol(idNodeAsType->semantic_value.identifierSemanticValue.identifierName);
+    SymbolTableEntry *symtab_lookup = retrieveSymbol(getIdName(idNodeAsType));
     if (symtab_lookup == NULL || symtab_lookup->attribute->attributeKind != TYPE_ATTRIBUTE) {
         printErrorMsg(idNodeAsType, SYMBOL_IS_NOT_TYPE);
         idNodeAsType->dataType = ERROR_TYPE;
