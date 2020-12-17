@@ -334,6 +334,12 @@ type_decl 	: TYPEDEF type id_list MK_SEMICOLON
                     AST_NODE* voidNode = makeIDNode("void", NORMAL_ID);
                     makeFamily($$, 2, voidNode, $3);
                 }
+            | TYPEDEF ID id_list MK_SEMICOLON
+                {
+                    $$ = makeDeclNode(TYPE_DECL);
+                    AST_NODE* idNode = makeIDNode($2, NORMAL_ID);
+                    makeFamily($$, 2, idNode, $3);
+                }
             ;
 
 var_decl	: type init_id_list MK_SEMICOLON 
@@ -341,7 +347,7 @@ var_decl	: type init_id_list MK_SEMICOLON
                     $$ = makeDeclNode(VARIABLE_DECL);
                     makeFamily($$, 2, $1, $2);
                 }
-            | ID id_list MK_SEMICOLON
+            | ID init_id_list MK_SEMICOLON
                 {
                     $$ = makeDeclNode(VARIABLE_DECL);
                     makeFamily($$, 2, makeIDNode($1, NORMAL_ID), $2);
@@ -423,6 +429,18 @@ cfactor:	CONST
             |MK_LPAREN cexpr MK_RPAREN 
                 {
                     $$ = $2;
+                }
+            | OP_MINUS CONST
+                {
+                    $$ = makeExprNode(UNARY_OPERATION, UNARY_OP_NEGATIVE);
+                    AST_NODE *const_node = Allocate(CONST_VALUE_NODE);
+                    const_node->semantic_value.const1 = $2;
+                    makeChild($$, const_node);
+                }
+            | OP_MINUS MK_LPAREN cexpr MK_RPAREN
+                {
+                    $$ = makeExprNode(UNARY_OPERATION, UNARY_OP_NEGATIVE);
+                    makeChild($$, $3);
                 }
             ;
 
@@ -767,7 +785,7 @@ main (argc, argv)
 int argc;
 char *argv[];
   {
-     yyin = fopen(argv[1],"r");
+     yyin = fopen(argv[1], "r");
      yyparse();
      // printGV(prog, NULL);
      
