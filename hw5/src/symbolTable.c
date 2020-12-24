@@ -200,7 +200,6 @@ void removeSymbol(char* symbolName)
             } else {
                 prev->nextInSameLevel = head->nextInSameLevel;
             }
-            free(head);
             break;
         }
         prev = head;
@@ -247,12 +246,10 @@ void closeCurrentScope()
         if (head->sameNameInOuterLevel)
             insertIntoHashChain(hashIndex, head->sameNameInOuterLevel);
         SymbolTableEntry* next = head->nextInSameLevel;
-        free(head);
         head = next;
     }
 
     ScopeStack* prevScope = symbolTable.scopeStack->prevScope; // return to the previous scope
-    free(symbolTable.scopeStack);
     symbolTable.scopeStack = prevScope;
     symbolTable.currentLevel -= 1;
 }
