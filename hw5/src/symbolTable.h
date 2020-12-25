@@ -82,6 +82,10 @@ typedef struct SymbolTableEntry
     SymbolAttribute* attribute;
     int nestingLevel;
 
+    // for code generation
+    int isGlobal;
+    int place;
+    long long offset;
 } SymbolTableEntry;
 
 typedef struct ScopeStack

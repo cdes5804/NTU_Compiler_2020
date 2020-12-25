@@ -17,3 +17,21 @@ void codeGeneration(AST_NODE* program)
         SYS_ERR_EXIT("Error when open output file");
     fclose(fout);
 }
+
+long long stackOffset;
+
+long long pushStack32(int reg)
+{
+    fprintf(fout, "addi sp, sp, -4\n");
+    fprintf(fout, "sw, x%d, 0(sp)\n");
+    stackOffset += 4;
+    return stackOffset;
+}
+
+long long pushStack64(int reg)
+{
+    fprintf(fout, "addi sp, sp, -8\n");
+    fprintf(fout, "sd, x%d, 0(sp)\n");
+    stackOffset += 8;
+    return stackOffset;
+}
