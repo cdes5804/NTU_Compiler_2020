@@ -164,7 +164,6 @@ struct AST_NODE {
 		CON_Type *const1;
 	} semantic_value;
 
-    int place;
     long long offset;
 };
 typedef struct AST_NODE AST_NODE;
