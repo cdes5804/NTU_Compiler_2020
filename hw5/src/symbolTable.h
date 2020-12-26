@@ -83,6 +83,7 @@ typedef struct SymbolTableEntry
     int nestingLevel;
 
     long long offset;
+    char* globalLabel;
 } SymbolTableEntry;
 
 typedef struct ScopeStack
