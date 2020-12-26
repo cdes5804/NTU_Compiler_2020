@@ -65,6 +65,7 @@ typedef enum ErrorMsgKind
     PASS_SCALAR_TO_ARRAY,
     NON_CONST_GLOBAL_INITIALIZATION,
     TYPE_CONFLICT,
+    VOID_OPERATION
 } ErrorMsgKind;
 
 char* getIdName(AST_NODE* node) {
@@ -201,6 +202,9 @@ void printErrorMsg(AST_NODE* node, ErrorMsgKind errorMsgKind)
         case TYPE_CONFLICT:
             printf("conflicting types for \'%s\'\n",
                    getIdName(node));
+            break;
+        case VOID_OPERATION:
+            printf("operation on void type\n");
             break;
         default:
             printf("Unhandled case in void printErrorMsg(AST_NODE* node, ERROR_MSG_KIND* errorMsgKind)\n");
@@ -833,6 +837,9 @@ void processExprNode(AST_NODE* exprNode)
             } else if (leftOperand->dataType == INT_PTR_TYPE || rightOperand->dataType == INT_PTR_TYPE ||
                        leftOperand->dataType == FLOAT_PTR_TYPE || rightOperand->dataType == FLOAT_PTR_TYPE) {
                 printErrorMsg(exprNode, INCOMPATIBLE_ARRAY_DIMENSION);
+                exprNode->dataType = ERROR_TYPE;
+            } else if (leftOperand->dataType == VOID_TYPE || rightOperand->dataType == VOID_TYPE) {
+                printErrorMsg(exprNode, VOID_OPERATION);
                 exprNode->dataType = ERROR_TYPE;
             } else {
                 exprNode->dataType = getBiggerType(leftOperand->dataType, rightOperand->dataType);
