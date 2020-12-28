@@ -27,7 +27,7 @@ void genProgram(AST_NODE* programNode)
     while (globalDeclarationNode) {
         AST_TYPE nodeType = globalDeclarationNode->nodeType;
         if (nodeType == VARIABLE_DECL_LIST_NODE) { // variable declaration
-            genGeneralNode(globalDeclarationNode);
+            genGeneralNode(globalDeclarationNode, NULL);
         } else if (nodeType == DECLARATION_NODE) { // function declaration
             genDeclarationNode(globalDeclarationNode);
         }
@@ -35,7 +35,7 @@ void genProgram(AST_NODE* programNode)
     }
 }
 
-void genGeneralNode(AST_NODE* node)
+void genGeneralNode(AST_NODE* node, char* endLabel)
 {
     AST_TYPE nodeType = node->nodeType;
     AST_NODE* childNode = node->child;
@@ -48,7 +48,7 @@ void genGeneralNode(AST_NODE* node)
             break;
         case STMT_LIST_NODE:
             while (childNode) {
-                //genStmtNode(childNode);
+                genStmtNode(childNode, endLabel);
                 childNode = childNode->rightSibling;
             }
             break;
@@ -149,15 +149,15 @@ void genFuncHead(char* funcName)
                   "%s:\n", funcName);
 }
 
-void genPrologue(char* funcName)
+char* genPrologue(char* funcName)
 {
-    fprintf(fout, "addi sp, sp, -16\n"
-                  "sd ra, 8(sp)\n"
-                  "sd fp, 0(sp)\n"
-                  "mv fp, sp\n"
-                  "la ra, _frameSize_%s\n"
-                  "lw ra, 0(ra)\n"
-                  "sub sp, sp, ra\n", funcName);
+    fprintf(fout, "\taddi sp, sp, -16\n"
+                  "\tsd ra, 8(sp)\n"
+                  "\tsd fp, 0(sp)\n"
+                  "\tmv fp, sp\n"
+                  "\tla ra, _frameSize_%s\n"
+                  "\tlw ra, 0(ra)\n"
+                  "\tsub sp, sp, ra\n", funcName);
     storeCalleeSavedRegisters();
 }
 
@@ -165,10 +165,10 @@ void genEpilogue(char* funcName)
 {   
     fprintf(fout, "_end_%s:\n", funcName);
     restoreCalleeSavedRegisters();
-    fprintf(fout, "ld ra, 8(fp)\n"
-                  "addi sp, fp, -8\n"
-                  "ld fp, 0(fp)\n"
-                  "jr ra\n");
+    fprintf(fout, "\tld ra, 8(fp)\n"
+                  "\taddi sp, fp, -8\n"
+                  "\tld fp, 0(fp)\n"
+                  "\tjr ra\n");
 }
 
 void genFuncDecl(AST_NODE* declarationNode)
@@ -178,16 +178,18 @@ void genFuncDecl(AST_NODE* declarationNode)
     AST_NODE *paramListNode = funcNameNode->rightSibling;
     AST_NODE *blockNode = paramListNode->rightSibling;
     char *funcName = funcNameNode->semantic_value.identifierSemanticValue.identifierName;
+    
+    initReg();
+    initStack();
 
     genFuncHead(funcName);
     genPrologue(funcName);
-
-    initReg();
-    initStack();
     
-    genBlockNode(blockNode);
+    char endLabel[128];
+    snprintf(endLabel, 128, "_end_%s", funcName);
+    genBlockNode(blockNode, endLabel);
 
-    fprintf(fout, "j _end_%s\n", funcName);
+    fprintf(fout, "\tj %s\n", endLabel);
     genEpilogue(funcName);
 
     long long frameSize = getFrameSize();
@@ -195,13 +197,75 @@ void genFuncDecl(AST_NODE* declarationNode)
                   "_frameSize_%s: .word %lld\n", funcName, frameSize);
 }
 
-void genBlockNode(AST_NODE* blockNode)
+void genBlockNode(AST_NODE* blockNode, char* endLabel)
 {
     AST_NODE* node = blockNode->child;
     while (node) {
-        genGeneralNode(node);
+        genGeneralNode(node, endLabel);
         node = node->rightSibling;
     }
+}
+
+void genStmtNode(AST_NODE* stmtNode, char* endLabel)
+{
+    if (stmtNode->nodeType == NUL_NODE)
+        return;
+    if (stmtNode->nodeType == BLOCK_NODE)
+        return genBlockNode(stmtNode, endLabel);
+
+    switch (stmtNode->semantic_value.stmtSemanticValue.kind) {
+        case WHILE_STMT:
+            genWhileStmt(stmtNode, endLabel);
+            break;
+        case FOR_STMT:
+            genForStmt(stmtNode, endLabel);
+            break;
+        case ASSIGN_STMT:
+            genAssignmentStmt(stmtNode);
+            break;
+        case IF_STMT:
+            genIfStmt(stmtNode, endLabel);
+            break;
+        case FUNCTION_CALL_STMT:
+            genFunctionCall(stmtNode);
+            break;
+        case RETURN_STMT:
+            genReturnStmt(stmtNode, endLabel);
+            break;
+    }
+}
+
+void genWhileStmt(AST_NODE* whileNode, char* endLabel)
+{
+    int labelNo = getLabel();
+    fprintf(fout, "_Test%d:\n", labelNo);
+    // genAssignOrExpr(whileNode);
+    genStmtNode(whileNode->child->rightSibling, endLabel);
+}
+
+void genForStmt(AST_NODE* stmtNode, char* endLabel)
+{
+    
+}
+
+void genIfStmt(AST_NODE* stmtNode, char* endLabel)
+{
+    
+}
+
+void genAssignmentStmt(AST_NODE* stmtNode)
+{
+    
+}
+
+void genFunctionCall(AST_NODE* stmtNode)
+{
+
+}
+
+void genReturnStmt(AST_NODE* stmtNode, char* endLabel)
+{
+
 }
 
 /******************************
@@ -213,7 +277,12 @@ int savedRegisters[] = {9, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27};
 int allocatableRegisters[] = {9, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 5, 6, 7, 28, 29, 30, 31};
 int argumentRegisters[] = {10, 11, 12, 13, 14, 15, 16, 17};
 
-bool regAvailable[32];   // if a register is available
+int floatTemporaryRegisters[] = {26, 27, 28, 29, 30, 31};
+int floatSavedRegisters[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+int floatAllocatableRegisters[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 26, 27, 28, 29, 30, 31};
+int floatArgumentRegisters[] = {18, 19, 20, 21, 22, 23, 24, 25};
+
+bool regAvailable[32], floatRegAvailable[32];   // if a register is available
 
 void initReg()
 {
@@ -222,35 +291,70 @@ void initReg()
         int reg = allocatableRegisters[i];
         regAvailable[reg] = true;
     }
-}
 
-int getReg()
-{
-    int numReg = sizeof(allocatableRegisters) / sizeof(allocatableRegisters[0]);
+    numReg = sizeof(floatAllocatableRegisters) / sizeof(floatAllocatableRegisters[0]);
     for (int i = 0; i < numReg; i++) {
-        int reg = allocatableRegisters[i];
-        if (regAvailable[reg]) {
-            regAvailable[reg] = false;
-            return reg;
-        }
+        int reg = floatAllocatableRegisters[i];
+        floatRegAvailable[reg] = true;
     }
-    fprintf(stderr, "Error: Out of Registers\n");
-    exit(1);
 }
 
-void freeReg(int reg)
+int getReg(char type)
 {
-    regAvailable[reg] = true;
+    if (type == 'i') {
+        int numReg = sizeof(allocatableRegisters) / sizeof(allocatableRegisters[0]);
+        for (int i = 0; i < numReg; i++) {
+            int reg = allocatableRegisters[i];
+            if (regAvailable[reg]) {
+                regAvailable[reg] = false;
+                return reg;
+            }
+        }
+        fprintf(stderr, "Error: Out of Registers\n");
+        exit(1);
+    } else if (type == 'f') {
+        int numReg = sizeof(floatAllocatableRegisters) / sizeof(floatAllocatableRegisters[0]);
+        for (int i = 0; i < numReg; i++) {
+            int reg = floatAllocatableRegisters[i];
+            if (floatRegAvailable[reg]) {
+                floatRegAvailable[reg] = false;
+                return reg;
+            }
+        }
+        fprintf(stderr, "Error: Out of Registers\n");
+        exit(1);
+    } else {
+        fprintf(stderr, "Invalid type in getReg\n");
+        exit(1);
+    }
 }
 
-long long savedRegOffset[32];
+void freeReg(int reg, char type)
+{
+    if (type == 'i') {
+        regAvailable[reg] = true;
+    } else if (type == 'f') {
+        floatRegAvailable[reg] = true;
+    } else {
+        fprintf(stderr, "Invalid type in freeReg\n");
+        exit(1);
+    }
+}
+
+long long savedRegOffset[32], floatSavedRegOffset[32];
 void storeCalleeSavedRegisters()
 {
     int numReg = sizeof(savedRegisters) / sizeof(savedRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = savedRegisters[i];
         savedRegOffset[reg] = pushStack(8);
-        fprintf(fout, "sd x%d, -%lld(fp)\n", reg, savedRegOffset[reg]);
+        fprintf(fout, "\tsd x%d, -%lld(fp)\n", reg, savedRegOffset[reg]);
+    }
+    numReg = sizeof(floatSavedRegisters) / sizeof(floatSavedRegisters[0]);
+    for (int i = 0; i < numReg; i++) {
+        int reg = floatSavedRegisters[i];
+        floatSavedRegOffset[reg] = pushStack(8);
+        fprintf(fout, "\tfsd f%d, -%lld(fp)\n", reg, floatSavedRegOffset[reg]);
     }
 }
 
@@ -259,7 +363,12 @@ void restoreCalleeSavedRegisters()
     int numReg = sizeof(savedRegisters) / sizeof(savedRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = savedRegisters[i];
-        fprintf(fout, "ld x%d, -%lld(fp)\n", reg, savedRegOffset[reg]);
+        fprintf(fout, "\tld x%d, -%lld(fp)\n", reg, savedRegOffset[reg]);
+    }
+    numReg = sizeof(floatSavedRegisters) / sizeof(floatSavedRegisters[0]);
+    for (int i = 0; i < numReg; i++) {
+        int reg = floatSavedRegisters[i];
+        fprintf(fout, "\tfld f%d, -%lld(fp)\n", reg, floatSavedRegOffset[reg]);
     }
 }
 
@@ -283,4 +392,13 @@ long long pushStack(long long size)
 long long getFrameSize()
 {
     return curFrameSize;
+}
+
+/******************************
+ * Label Management
+ ******************************/
+int getLabel()
+{
+    static int labelNo = 0;
+    return labelNo++;
 }

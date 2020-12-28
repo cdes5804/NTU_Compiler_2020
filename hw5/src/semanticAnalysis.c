@@ -807,7 +807,9 @@ void evaluateExprValue(AST_NODE* exprNode)
     }
     if (exprNode->dataType == INT_TYPE) {
         exprNode->semantic_value.exprSemanticValue.constEvalValue.iValue = iResult;
+        exprNode->semantic_value.exprSemanticValue.constEvalValue.fValue = iResult;
     } else if (exprNode->dataType == FLOAT_TYPE) {
+        exprNode->semantic_value.exprSemanticValue.constEvalValue.iValue = fResult;
         exprNode->semantic_value.exprSemanticValue.constEvalValue.fValue = fResult;
     } else {
         fprintf(stderr, "Internal Error: unexpected data type in evaluateExprValue\n");
