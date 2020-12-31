@@ -845,6 +845,17 @@ void processExprNode(AST_NODE* exprNode)
                 exprNode->dataType = ERROR_TYPE;
             } else {
                 exprNode->dataType = getBiggerType(leftOperand->dataType, rightOperand->dataType);
+                switch (exprNode->semantic_value.exprSemanticValue.op.binaryOp) {
+                    case BINARY_OP_EQ:
+                    case BINARY_OP_GE:
+                    case BINARY_OP_LE:
+                    case BINARY_OP_NE:
+                    case BINARY_OP_GT:
+                    case BINARY_OP_LT:
+                    case BINARY_OP_AND:
+                    case BINARY_OP_OR:
+                        exprNode->dataType = INT_TYPE;
+                }
                 if (isConstExpression(leftOperand) && isConstExpression(rightOperand)) {
                     evaluateExprValue(exprNode);
                     exprNode->semantic_value.exprSemanticValue.isConstEval = 1;
@@ -861,6 +872,8 @@ void processExprNode(AST_NODE* exprNode)
                 exprNode->dataType = ERROR_TYPE;
             } else {
                 exprNode->dataType = leftOperand->dataType;
+                if (exprNode->semantic_value.exprSemanticValue.op.unaryOp == UNARY_OP_LOGICAL_NEGATION)
+                    exprNode->dataType = INT_TYPE;
                 if (isConstExpression(leftOperand)) {
                     evaluateExprValue(exprNode);
                     exprNode->semantic_value.exprSemanticValue.isConstEval = 1;

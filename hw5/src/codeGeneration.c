@@ -8,6 +8,7 @@
 #include "codeGeneration.h"
 
 #define SYS_ERR_EXIT(msg) { perror(msg); exit(127); }
+DATA_TYPE getBiggerType(DATA_TYPE dataType1, DATA_TYPE dataType2);
 
 static const char OUTPUT_FILE_NAME[] = "output.s";
 FILE *fout;
@@ -96,7 +97,7 @@ void genDeclarationNode(AST_NODE* declarationNode)
 void genGlobalVar(AST_NODE* idNode, SymbolTableEntry* symtabEntry)
 {
     char label[128];
-    snprintf(label, 128, "_%d", getLabel());
+    snprintf(label, 128, ".GlobalVar%d", getLabel());
     symtabEntry->globalLabel = strdup(label);
     fprintf(fout, ".data\n");
     fprintf(fout, "%s: .word ", label);
@@ -190,7 +191,7 @@ void genFuncDecl(AST_NODE* declarationNode)
     genPrologue(funcName);
     
     char endLabel[128];
-    snprintf(endLabel, 128, "_end_%s", funcName);
+    snprintf(endLabel, 128, ".end_%s", funcName);
     genBlockNode(blockNode, endLabel);
 
     fprintf(fout, "\tj %s\n", endLabel);
@@ -242,7 +243,7 @@ void genStmtNode(AST_NODE* stmtNode, char* endLabel)
 void genWhileStmt(AST_NODE* whileNode, char* endLabel)
 {
     int labelNo = getLabel();
-    fprintf(fout, "_Test%d:\n", labelNo);
+    fprintf(fout, ".Test%d:\n", labelNo);
     genAssignOrExpr(whileNode);
     genStmtNode(whileNode->child->rightSibling, endLabel);
 }
@@ -275,10 +276,10 @@ void genIfStmt(AST_NODE* stmtNode, char* endLabel)
     AST_NODE* elseBodyNode = ifBodyNode->rightSibling;
 
     genAssignOrExpr(boolExprNode);
-
+    int reg;
     switch (boolExprNode->dataType) {
         case INT_TYPE:
-            int reg = getReg('i');
+            reg = getReg('i');
             loadNode(boolExprNode, reg);
             freeReg(reg, 'i');
             break;
@@ -288,8 +289,8 @@ void genIfStmt(AST_NODE* stmtNode, char* endLabel)
             fprintf(stderr, "genIfStmt: Invalid boolExprNode->dataType\n");
             break;
     }
-    genStmtNode(ifBodyNode);
-    genStmtNode(elseBodyNode);
+    genStmtNode(ifBodyNode, endLabel);
+    genStmtNode(elseBodyNode, endLabel);
 }
 
 void genAssignmentStmt(AST_NODE* stmtNode)
@@ -298,7 +299,7 @@ void genAssignmentStmt(AST_NODE* stmtNode)
     AST_NODE* exprNode = idNode->rightSibling;
 
     genVariable(idNode);
-    genExprRelated(exprNode);
+    genExprRelatedNode(exprNode);
 
     AssignNode(idNode, exprNode);
 }
@@ -338,7 +339,299 @@ void genVariable(AST_NODE* idNode)
 
 void genExprNode(AST_NODE* exprNode)
 {
+    exprNode->offset = allocFrame(4);
+    AST_NODE *leftOperand, *rightOperand;
+    switch (exprNode->semantic_value.exprSemanticValue.kind) {
+        case BINARY_OPERATION:
+            leftOperand = exprNode->child;
+            rightOperand = leftOperand->rightSibling;
+            genExprRelatedNode(leftOperand);
+            genExprRelatedNode(rightOperand);
+            
+            // special case: short-circuit && ||
+            if (exprNode->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_AND) {
+                genLogicalAnd(exprNode, leftOperand, rightOperand);
+                break;
+            } else if (exprNode->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_OR) {
+                genLogicalOr(exprNode, leftOperand, rightOperand);
+                break;
+            }
 
+            // If op is comparison or logical, then expr->dataType may not == biggerType
+            DATA_TYPE biggerType = getBiggerType(leftOperand->dataType, rightOperand->dataType);
+            typeConversion(leftOperand, biggerType);
+            typeConversion(rightOperand, biggerType);
+            switch (biggerType) {
+                case INT_TYPE:
+                    genBinaryOpInt(exprNode, leftOperand, rightOperand);
+                    break;
+                case FLOAT_TYPE:
+                    genBinaryOpFloat(exprNode, leftOperand, rightOperand);
+                    break;
+                default:
+                    fprintf(stderr, "genExprNode: Invalid data type\n");
+                    exit(1);
+            }
+            break;
+        case UNARY_OPERATION:
+            leftOperand = exprNode->child;
+            genExprRelatedNode(leftOperand);
+            // if op is logical not, then exprNode->dataType != leftOperand->dataType
+            switch (leftOperand->dataType) {
+                case INT_TYPE:
+                    genUnaryOpInt(exprNode, leftOperand);
+                    break;
+                case FLOAT_TYPE:
+                    genUnaryOpFloat(exprNode, leftOperand);
+                    break;
+                default:
+                    fprintf(stderr, "genExprNode: Invalid data type\n");
+                    exit(1);
+            }
+            break;
+    }
+}
+
+void genBinaryOpInt(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOperand)
+{
+    int lhsReg = getReg('i');
+    int rhsReg = getReg('i');
+    int resultReg = getReg('i');
+    loadNode(leftOperand, lhsReg);
+    loadNode(rightOperand, rhsReg);
+    switch (exprNode->semantic_value.exprSemanticValue.op.binaryOp) {
+        case BINARY_OP_ADD:
+            fprintf(fout, "\tadd x%d, x%d, x%d\n", resultReg, lhsReg, rhsReg);
+            break;
+        case BINARY_OP_SUB:
+            fprintf(fout, "\tsub x%d, x%d, x%d\n", resultReg, lhsReg, rhsReg);
+            break;
+        case BINARY_OP_MUL:
+            fprintf(fout, "\tmul x%d, x%d, x%d\n", resultReg, lhsReg, rhsReg);
+            break;
+        case BINARY_OP_DIV:
+            fprintf(fout, "\tdiv x%d, x%d, x%d\n", resultReg, lhsReg, rhsReg);
+            break;
+        case BINARY_OP_EQ:
+            fprintf(fout, "\tsub x%d, x%d, x%d\n", resultReg, lhsReg, rhsReg);
+            fprintf(fout, "\tseqz x%d, x%d\n", resultReg, resultReg);
+            break;
+        case BINARY_OP_GE:
+            // lhs >= rhs => !(lhs < rhs)
+            fprintf(fout, "\tsub x%d, x%d, x%d\n", resultReg, lhsReg, rhsReg);
+            fprintf(fout, "\tsltz x%d, x%d\n", resultReg, resultReg);
+            fprintf(fout, "\tnot x%d, x%d\n", resultReg, resultReg);
+            break;
+        case BINARY_OP_LE:
+            // lhs <= rhs => !(lhs > rhs)
+            fprintf(fout, "\tsub x%d, x%d, x%d\n", resultReg, lhsReg, rhsReg);
+            fprintf(fout, "\tsgtz x%d, x%d\n", resultReg, resultReg);
+            fprintf(fout, "\tnot x%d, x%d\n", resultReg, resultReg);
+            break;
+        case BINARY_OP_NE:
+            fprintf(fout, "\tsub x%d, x%d, x%d\n", resultReg, lhsReg, rhsReg);
+            fprintf(fout, "\tseqz x%d, x%d\n", resultReg, resultReg);
+            fprintf(fout, "\tnot x%d, x%d\n", resultReg, resultReg);
+            break;
+        case BINARY_OP_GT:
+            fprintf(fout, "\tsub x%d, x%d, x%d\n", resultReg, lhsReg, rhsReg);
+            fprintf(fout, "\tsgtz x%d, x%d\n", resultReg, resultReg);
+            break;
+        case BINARY_OP_LT:
+            fprintf(fout, "\tsub x%d, x%d, x%d\n", resultReg, lhsReg, rhsReg);
+            fprintf(fout, "\tsltz x%d, x%d\n", resultReg, resultReg);
+            break;
+    }
+    storeNode(exprNode, resultReg);
+    freeReg(lhsReg, 'i');
+    freeReg(rhsReg, 'i');
+    freeReg(resultReg, 'i');
+}
+
+void genBinaryOpFloat(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOperand)
+{
+    int lhsReg = getReg('f');
+    int rhsReg = getReg('f');
+    int resultReg = getReg('f');
+    int intResultReg = getReg('i');  // for comparison op
+    loadNode(leftOperand, lhsReg);
+    loadNode(rightOperand, rhsReg);
+    switch (exprNode->semantic_value.exprSemanticValue.op.binaryOp) {
+        case BINARY_OP_ADD:
+            fprintf(fout, "\tfadd.s f%d, f%d, f%d\n", resultReg, lhsReg, rhsReg);
+            break;
+        case BINARY_OP_SUB:
+            fprintf(fout, "\tfsub.s f%d, f%d, f%d\n", resultReg, lhsReg, rhsReg);
+            break;
+        case BINARY_OP_MUL:
+            fprintf(fout, "\tfmul.s f%d, f%d, f%d\n", resultReg, lhsReg, rhsReg);
+            break;
+        case BINARY_OP_DIV:
+            fprintf(fout, "\tfdiv.s f%d, f%d, f%d\n", resultReg, lhsReg, rhsReg);
+            break;
+        case BINARY_OP_EQ:
+            fprintf(fout, "\tfeq.s x%d, f%d, f%d\n", intResultReg, lhsReg, rhsReg);
+            break;
+        case BINARY_OP_GE:
+            // lhs >= rhs => !(lhs < rhs)
+            fprintf(fout, "\tflt.s x%d, f%d, f%d\n", intResultReg, lhsReg, rhsReg);
+            fprintf(fout, "\tnot x%d, x%d\n", intResultReg, intResultReg);
+            break;
+        case BINARY_OP_LE:
+            fprintf(fout, "\tfle.s x%d, f%d, f%d\n", intResultReg, lhsReg, rhsReg);
+            break;
+        case BINARY_OP_NE:
+            fprintf(fout, "\tfeq.s x%d, f%d, f%d\n", intResultReg, lhsReg, rhsReg);
+            fprintf(fout, "\tnot x%d, x%d\n", intResultReg, intResultReg);
+            break;
+        case BINARY_OP_GT:
+            // lhs > rhs => !(lhs <= rhs)
+            fprintf(fout, "\tfle.s x%d, f%d, f%d\n", intResultReg, lhsReg, rhsReg);
+            fprintf(fout, "\tnot x%d, x%d\n", intResultReg, intResultReg);
+            break;
+        case BINARY_OP_LT:
+            fprintf(fout, "\tflt.s x%d, f%d, f%d\n", intResultReg, lhsReg, rhsReg);
+            break;
+    }
+    if (exprNode->dataType == INT_TYPE)
+        storeNode(exprNode, intResultReg);
+    else
+        storeNode(exprNode, resultReg);
+    freeReg(lhsReg, 'f');
+    freeReg(rhsReg, 'f');
+    freeReg(resultReg, 'f');
+    freeReg(intResultReg, 'i');
+}
+
+void genUnaryOpInt(AST_NODE* exprNode, AST_NODE* operand)
+{
+    int operandReg = getReg('i');
+    int resultReg = getReg('i');
+    switch (exprNode->semantic_value.exprSemanticValue.op.unaryOp) {
+        case UNARY_OP_NEGATIVE:
+            fprintf(fout, "\tneg x%d, x%d\n", resultReg, operandReg);
+            break;
+        case UNARY_OP_LOGICAL_NEGATION:
+            fprintf(fout, "\tseqz x%d, x%d\n", resultReg, operandReg);
+            break;
+    }
+    storeNode(exprNode, resultReg);
+    freeReg(operandReg, 'i');
+    freeReg(resultReg, 'i');
+}
+
+void genUnaryOpFloat(AST_NODE* exprNode, AST_NODE* operand)
+{
+    int operandReg = getReg('f');
+    loadNode(operand, operandReg);
+    int resultReg = getReg('f');
+    int intResultReg = getReg('i');
+    switch (exprNode->semantic_value.exprSemanticValue.op.unaryOp) {
+        case UNARY_OP_NEGATIVE:
+            fprintf(fout, "\tfneg.s f%d, f%d\n", resultReg, operandReg);
+            break;
+        case UNARY_OP_LOGICAL_NEGATION:
+            fprintf(fout, "\tfmv.w.x f%d, zero\n", resultReg);
+            fprintf(fout, "\tfeq.s x%d, f%d, f%d\n", intResultReg, operandReg, resultReg);
+            break;
+    }
+    if (exprNode->dataType == INT_TYPE)
+        storeNode(exprNode, intResultReg);
+    else
+        storeNode(exprNode, resultReg);
+    freeReg(operandReg, 'f');
+    freeReg(resultReg, 'f');
+    freeReg(intResultReg, 'i');
+}
+
+void genLogicalAnd(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOperand)
+{
+    int leftBoolReg = getReg('i');
+    int rightBoolReg = getReg('i');
+    if (leftOperand->dataType == FLOAT_TYPE) {
+        int zeroReg = getReg('f');
+        int leftOperandReg = getReg('f');
+        loadNode(leftOperand, leftOperandReg);
+        fprintf(fout, "\tfmv.w.x f%d, zero\n", zeroReg);
+        fprintf(fout, "\tfeq.s x%d, f%d, f%d\n", leftBoolReg, zeroReg, leftOperandReg);
+        freeReg(zeroReg, 'f');
+        freeReg(leftOperandReg, 'f');
+    } else {
+        loadNode(leftOperand, leftBoolReg);
+    }
+
+    char endLabel[128];
+    snprintf(endLabel, 128, ".lAndFalse%d", getLabel());
+    fprintf(fout, "\tbeqz x%d, %s\n", leftBoolReg, endLabel);
+    
+    if (rightOperand->dataType == FLOAT_TYPE) {
+        int zeroReg = getReg('f');
+        int rightOperandReg = getReg('f');
+        loadNode(leftOperand, rightOperandReg);
+        fprintf(fout, "\tfmv.w.x f%d, zero\n", zeroReg);
+        fprintf(fout, "\tfeq.s x%d, f%d, f%d\n", rightBoolReg, zeroReg, rightOperandReg);
+        freeReg(zeroReg, 'f');
+        freeReg(rightOperandReg, 'f');
+    } else {
+        loadNode(rightOperand, rightBoolReg);
+    }
+
+    fprintf(fout, "\tbeqz x%d, %s\n", rightBoolReg, endLabel);
+
+    // evaluated as true
+    storeNode(exprNode, rightBoolReg);
+
+    // evaluated as false
+    fprintf(fout, "%s:\n", endLabel);
+    storeNode(exprNode, leftBoolReg);
+
+    freeReg(leftBoolReg, 'i');
+    freeReg(rightBoolReg, 'i');
+}
+
+void genLogicalOr(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOperand)
+{
+    int leftBoolReg = getReg('i');
+    int rightBoolReg = getReg('i');
+    if (leftOperand->dataType == FLOAT_TYPE) {
+        int zeroReg = getReg('f');
+        int leftOperandReg = getReg('f');
+        loadNode(leftOperand, leftOperandReg);
+        fprintf(fout, "\tfmv.w.x f%d, zero\n", zeroReg);
+        fprintf(fout, "\tfeq.s x%d, f%d, f%d\n", leftBoolReg, zeroReg, leftOperandReg);
+        freeReg(zeroReg, 'f');
+        freeReg(leftOperandReg, 'f');
+    } else {
+        loadNode(leftOperand, leftBoolReg);
+    }
+
+    char endLabel[128];
+    snprintf(endLabel, 128, ".lOrTrue%d", getLabel());
+    fprintf(fout, "\tbnez x%d, %s\n", leftBoolReg, endLabel);
+    
+    if (rightOperand->dataType == FLOAT_TYPE) {
+        int zeroReg = getReg('f');
+        int rightOperandReg = getReg('f');
+        loadNode(leftOperand, rightOperandReg);
+        fprintf(fout, "\tfmv.w.x f%d, zero\n", zeroReg);
+        fprintf(fout, "\tfeq.s x%d, f%d, f%d\n", rightBoolReg, zeroReg, rightOperandReg);
+        freeReg(zeroReg, 'f');
+        freeReg(rightOperandReg, 'f');
+    } else {
+        loadNode(rightOperand, rightBoolReg);
+    }
+
+    fprintf(fout, "\tbnez x%d, %s\n", rightBoolReg, endLabel);
+
+    // evaluated as false
+    storeNode(exprNode, rightBoolReg);
+
+    // evaluated as true
+    fprintf(fout, "%s:\n", endLabel);
+    storeNode(exprNode, leftBoolReg);
+
+    freeReg(leftBoolReg, 'i');
+    freeReg(rightBoolReg, 'i');
 }
 
 void genConst(AST_NODE* constNode)
@@ -348,14 +641,14 @@ void genConst(AST_NODE* constNode)
         case INT_TYPE:
             break;
         case FLOAT_TYPE:
-            snprintf(label, 128, "_%d", getLabel());
+            snprintf(label, 128, ".Const%d", getLabel());
             constNode->globalLabel = strdup(label);
             fprintf(fout, ".data\n");
             fprintf(fout, "%s: .word %u\n", label,
                     getFloatRepr(constNode->semantic_value.const1->const_u.fval));
             break;
         case CONST_STRING_TYPE:
-            snprintf(label, 128, "_%d", getLabel());
+            snprintf(label, 128, ".Const%d", getLabel());
             constNode->globalLabel = strdup(label);
             fprintf(fout, ".data\n"
                           ".align 3\n");
@@ -368,7 +661,7 @@ void genConst(AST_NODE* constNode)
 void genWriteCall(AST_NODE* paramListNode)
 {
     AST_NODE* paramNode = paramListNode->child;
-    genExprRelated(paramNode);
+    genExprRelatedNode(paramNode);
     int reg = getReg('i');
     switch (paramNode->dataType) {
         case INT_TYPE:
@@ -505,19 +798,20 @@ void restoreCalleeSavedRegisters()
     }
 }
 
+long long temporaryRegOffset[32], floatTemporaryRegOffset[32];
 void storeCallerSavedRegisters()
 {
     int numReg = sizeof(temporaryRegisters) / sizeof(temporaryRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = temporaryRegisters[i];
-        savedRegOffset[reg] = allocFrame(8);
-        fprintf(fout, "\tsd x%d, -%lld(fp)\n", reg, savedRegOffset[reg]);
+        temporaryRegOffset[reg] = allocFrame(8);
+        fprintf(fout, "\tsd x%d, -%lld(fp)\n", reg, temporaryRegOffset[reg]);
     }
     numReg = sizeof(floatTemporaryRegisters) / sizeof(floatTemporaryRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = floatTemporaryRegisters[i];
-        floatSavedRegOffset[reg] = allocFrame(8);
-        fprintf(fout, "\tfsd f%d, -%lld(fp)\n", reg, floatSavedRegOffset[reg]);
+        floatTemporaryRegOffset[reg] = allocFrame(8);
+        fprintf(fout, "\tfsd f%d, -%lld(fp)\n", reg, floatTemporaryRegOffset[reg]);
     }
 }
 
@@ -528,10 +822,10 @@ void restoreCallerSavedRegisters()
         int reg = temporaryRegisters[i];
         fprintf(fout, "\tld x%d, -%lld(fp)\n", reg, temporaryRegOffset[reg]);
     }
-    numReg = sizeof(floatSavedRegisters) / sizeof(floatSavedRegisters[0]);
+    numReg = sizeof(floatTemporaryRegisters) / sizeof(floatTemporaryRegisters[0]);
     for (int i = 0; i < numReg; i++) {
-        int reg = floatSavedRegisters[i];
-        fprintf(fout, "\tfld f%d, -%lld(fp)\n", reg, floatSavedRegOffset[reg]);
+        int reg = floatTemporaryRegisters[i];
+        fprintf(fout, "\tfld f%d, -%lld(fp)\n", reg, floatTemporaryRegOffset[reg]);
     }
 }
 

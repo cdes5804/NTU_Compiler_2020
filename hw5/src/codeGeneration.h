@@ -27,6 +27,12 @@ void genReturnStmt(AST_NODE* stmtNode, char* endLabel);
 void genExprRelatedNode(AST_NODE* exprRelatedNode);
 void genVariable(AST_NODE* idNode);
 void genExprNode(AST_NODE* exprNode);
+void genBinaryOpInt(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOperand);
+void genBinaryOpFloat(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOperand);
+void genUnaryOpInt(AST_NODE* exprNode, AST_NODE* operand);
+void genUnaryOpFloat(AST_NODE* exprNode, AST_NODE* operand);
+void genLogicalAnd(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOperand);
+void genLogicalOr(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOperand);
 void genConst(AST_NODE* constNode);
 
 /* Register Management */
