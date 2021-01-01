@@ -615,6 +615,7 @@ void genBinaryOpFloat(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* right
 void genUnaryOpInt(AST_NODE* exprNode, AST_NODE* operand)
 {
     int operandReg = getReg('i');
+    loadNode(operand, operandReg);
     int resultReg = getReg('i');
     switch (exprNode->semantic_value.exprSemanticValue.op.unaryOp) {
         case UNARY_OP_NEGATIVE:
