@@ -1018,9 +1018,9 @@ void storeNode(AST_NODE* node, int reg)
     if (isGlobalId(node)) {
         fprintf(fout, "\tla x%d, %s\n", addrReg, getSymtabEntry(node)->globalLabel);
     } else if (node->nodeType == IDENTIFIER_NODE) {  // local variable
-        fprintf(fout, "\taddi x%d, fp, -%lld\n", addrReg, getSymtabEntry(node)->offset);
+        addi(addrReg, getSymtabEntry(node)->offset);
     } else {
-        fprintf(fout, "\taddi x%d, fp, -%lld\n", addrReg, node->offset);
+        addi(addrReg, node->offset);
     }
 
     // if this node is an array reference, calculate the address of the referenced element
@@ -1066,7 +1066,7 @@ void loadNode(AST_NODE* node, int reg)
         loadConstantNode(node, reg);
         return;
     } else {
-        fprintf(fout, "\taddi x%d, fp, -%lld\n", addrReg, node->offset);
+        addi(addrReg, node->offset);
     }
 
     // if this node is an array reference, calculate the address of the referenced element
@@ -1104,13 +1104,13 @@ void loadConstantNode(AST_NODE* constNode, int reg)
     switch (constNode->dataType) {
         case INT_TYPE:
             tmpReg = getReg('i');
-            fprintf(fout, "\taddi x%d, fp, -%lld\n", tmpReg, constNode->offset);
+            addi(tmpReg, constNode->offset);
             fprintf(fout, "\tlw x%d, 0(x%d)\n", reg, tmpReg);
             freeReg(tmpReg, 'i');
             break;
         case FLOAT_TYPE:
             tmpReg = getReg('i');
-            fprintf(fout, "\taddi x%d, fp, -%lld\n", tmpReg, constNode->offset);
+            addi(tmpReg, constNode->offset);
             fprintf(fout, "\tflw f%d, 0(x%d)\n", reg, tmpReg);
             freeReg(tmpReg, 'i');
             break;
@@ -1179,4 +1179,11 @@ unsigned getFloatRepr(float f)
     union { unsigned uu; float ff; } tmp;
     tmp.ff = f;
     return tmp.uu;
+}
+
+void addi(int reg, long long offset) {
+    int tmpReg = getReg('i');
+    fprintf(fout, "\tli x%d, -%lld\n", tmpReg, offset);
+    fprintf(fout, "\tadd x%d, fp, x%d\n", reg, tmpReg);
+    freeReg(tmpReg, 'i');
 }

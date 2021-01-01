@@ -69,5 +69,6 @@ bool isPtrType(AST_NODE* node);
 bool isGlobalId(AST_NODE* node);
 bool isArrayId(AST_NODE* node);
 unsigned getFloatRepr(float f);
+void addi(int reg, long long offset);
 
 #endif
