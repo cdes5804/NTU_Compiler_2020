@@ -418,7 +418,9 @@ void genReturnStmt(AST_NODE* stmtNode, char* endLabel)
     int reg = 10;
     AST_NODE* returnExprNode = stmtNode->child;
     genExprRelatedNode(returnExprNode);
-    loadNode(returnExprNode, reg);
+    if (returnExprNode->nodeType != NUL_NODE) {
+        loadNode(returnExprNode, reg);
+    }
     fprintf(fout, "\tj %s\n", endLabel);
 }
 
