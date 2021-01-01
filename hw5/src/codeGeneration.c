@@ -836,13 +836,13 @@ void storeCalleeSavedRegisters()
     for (int i = 0; i < numReg; i++) {
         int reg = savedRegisters[i];
         savedRegOffset[reg] = allocFrame(8);
-        fprintf(fout, "\tsd x%d, %lld(sp)\n", reg, savedRegOffset[reg]);
+        fprintf(fout, "\tsd x%d, -%lld(fp)\n", reg, savedRegOffset[reg]);
     }
     numReg = sizeof(floatSavedRegisters) / sizeof(floatSavedRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = floatSavedRegisters[i];
         floatSavedRegOffset[reg] = allocFrame(8);
-        fprintf(fout, "\tfsd f%d, %lld(sp)\n", reg, floatSavedRegOffset[reg]);
+        fprintf(fout, "\tfsd f%d, -%lld(fp)\n", reg, floatSavedRegOffset[reg]);
     }
 }
 
@@ -851,12 +851,12 @@ void restoreCalleeSavedRegisters()
     int numReg = sizeof(savedRegisters) / sizeof(savedRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = savedRegisters[i];
-        fprintf(fout, "\tld x%d, %lld(sp)\n", reg, savedRegOffset[reg]);
+        fprintf(fout, "\tld x%d, -%lld(fp)\n", reg, savedRegOffset[reg]);
     }
     numReg = sizeof(floatSavedRegisters) / sizeof(floatSavedRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = floatSavedRegisters[i];
-        fprintf(fout, "\tfld f%d, %lld(sp)\n", reg, floatSavedRegOffset[reg]);
+        fprintf(fout, "\tfld f%d, -%lld(fp)\n", reg, floatSavedRegOffset[reg]);
     }
 }
 
@@ -867,13 +867,13 @@ void storeCallerSavedRegisters()
     for (int i = 0; i < numReg; i++) {
         int reg = temporaryRegisters[i];
         temporaryRegOffset[reg] = allocFrame(8);
-        fprintf(fout, "\tsd x%d, %lld(sp)\n", reg, temporaryRegOffset[reg]);
+        fprintf(fout, "\tsd x%d, -%lld(fp)\n", reg, temporaryRegOffset[reg]);
     }
     numReg = sizeof(floatTemporaryRegisters) / sizeof(floatTemporaryRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = floatTemporaryRegisters[i];
         floatTemporaryRegOffset[reg] = allocFrame(8);
-        fprintf(fout, "\tfsd f%d, %lld(sp)\n", reg, floatTemporaryRegOffset[reg]);
+        fprintf(fout, "\tfsd f%d, -%lld(fp)\n", reg, floatTemporaryRegOffset[reg]);
     }
 }
 
@@ -882,12 +882,12 @@ void restoreCallerSavedRegisters()
     int numReg = sizeof(temporaryRegisters) / sizeof(temporaryRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = temporaryRegisters[i];
-        fprintf(fout, "\tld x%d, %lld(sp)\n", reg, temporaryRegOffset[reg]);
+        fprintf(fout, "\tld x%d, -%lld(fp)\n", reg, temporaryRegOffset[reg]);
     }
     numReg = sizeof(floatTemporaryRegisters) / sizeof(floatTemporaryRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = floatTemporaryRegisters[i];
-        fprintf(fout, "\tfld f%d, %lld(sp)\n", reg, floatTemporaryRegOffset[reg]);
+        fprintf(fout, "\tfld f%d, -%lld(fp)\n", reg, floatTemporaryRegOffset[reg]);
     }
 }
 
