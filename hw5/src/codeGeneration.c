@@ -527,18 +527,18 @@ void genBinaryOpInt(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOp
             // lhs >= rhs => !(lhs < rhs)
             fprintf(fout, "\tsub x%d, x%d, x%d\n", resultReg, lhsReg, rhsReg);
             fprintf(fout, "\tsltz x%d, x%d\n", resultReg, resultReg);
-            fprintf(fout, "\tnot x%d, x%d\n", resultReg, resultReg);
+            fprintf(fout, "\txori x%d, x%d, 1\n", resultReg, resultReg);
             break;
         case BINARY_OP_LE:
             // lhs <= rhs => !(lhs > rhs)
             fprintf(fout, "\tsub x%d, x%d, x%d\n", resultReg, lhsReg, rhsReg);
             fprintf(fout, "\tsgtz x%d, x%d\n", resultReg, resultReg);
-            fprintf(fout, "\tnot x%d, x%d\n", resultReg, resultReg);
+            fprintf(fout, "\txori x%d, x%d, 1\n", resultReg, resultReg);
             break;
         case BINARY_OP_NE:
             fprintf(fout, "\tsub x%d, x%d, x%d\n", resultReg, lhsReg, rhsReg);
             fprintf(fout, "\tseqz x%d, x%d\n", resultReg, resultReg);
-            fprintf(fout, "\tnot x%d, x%d\n", resultReg, resultReg);
+            fprintf(fout, "\txori x%d, x%d, 1\n", resultReg, resultReg);
             break;
         case BINARY_OP_GT:
             fprintf(fout, "\tsub x%d, x%d, x%d\n", resultReg, lhsReg, rhsReg);
@@ -582,28 +582,30 @@ void genBinaryOpFloat(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* right
         case BINARY_OP_GE:
             // lhs >= rhs => !(lhs < rhs)
             fprintf(fout, "\tflt.s x%d, f%d, f%d\n", intResultReg, lhsReg, rhsReg);
-            fprintf(fout, "\tnot x%d, x%d\n", intResultReg, intResultReg);
+            fprintf(fout, "\txori x%d, x%d, 1\n", intResultReg, intResultReg);
             break;
         case BINARY_OP_LE:
             fprintf(fout, "\tfle.s x%d, f%d, f%d\n", intResultReg, lhsReg, rhsReg);
             break;
         case BINARY_OP_NE:
             fprintf(fout, "\tfeq.s x%d, f%d, f%d\n", intResultReg, lhsReg, rhsReg);
-            fprintf(fout, "\tnot x%d, x%d\n", intResultReg, intResultReg);
+            fprintf(fout, "\txori x%d, x%d, 1\n", intResultReg, intResultReg);
             break;
         case BINARY_OP_GT:
             // lhs > rhs => !(lhs <= rhs)
             fprintf(fout, "\tfle.s x%d, f%d, f%d\n", intResultReg, lhsReg, rhsReg);
-            fprintf(fout, "\tnot x%d, x%d\n", intResultReg, intResultReg);
+            fprintf(fout, "\txori x%d, x%d, 1\n", intResultReg, intResultReg);
             break;
         case BINARY_OP_LT:
             fprintf(fout, "\tflt.s x%d, f%d, f%d\n", intResultReg, lhsReg, rhsReg);
             break;
     }
-    if (exprNode->dataType == INT_TYPE)
+    if (exprNode->dataType == INT_TYPE) {
         storeNode(exprNode, intResultReg);
-    else
+    } else {
         storeNode(exprNode, resultReg);
+    }
+
     freeReg(lhsReg, 'f');
     freeReg(rhsReg, 'f');
     freeReg(resultReg, 'f');
