@@ -667,9 +667,8 @@ void genLogicalAnd(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOpe
         loadNode(leftOperand, leftBoolReg);
     }
 
-    char endLabel[128];
-    snprintf(endLabel, 128, ".lAndFalse%d", getLabel());
-    fprintf(fout, "\tbeqz x%d, %s\n", leftBoolReg, endLabel);
+    int label = getLabel();
+    fprintf(fout, "\tbeqz x%d, .lAndFalse%d\n", leftBoolReg, label);
     
     if (rightOperand->dataType == FLOAT_TYPE) {
         int zeroReg = getReg('f');
@@ -683,17 +682,23 @@ void genLogicalAnd(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOpe
         loadNode(rightOperand, rightBoolReg);
     }
 
-    fprintf(fout, "\tbeqz x%d, %s\n", rightBoolReg, endLabel);
+    fprintf(fout, "\tbeqz x%d, .lAndFalse%d\n", rightBoolReg, label);
 
     // evaluated as true
     storeNode(exprNode, rightBoolReg);
+    fprintf(fout, "\tj .lAndExit%d\n", label);
 
     // evaluated as false
-    fprintf(fout, "%s:\n", endLabel);
-    storeNode(exprNode, leftBoolReg);
+    fprintf(fout, ".lAndFalse%d:\n", label);
+    int falseReg = getReg('i');
+    fprintf(fout, "\tli x%d, 0\n", falseReg);
+    storeNode(exprNode, falseReg);
+    freeReg(falseReg, 'i');
 
     freeReg(leftBoolReg, 'i');
     freeReg(rightBoolReg, 'i');
+
+    fprintf(fout, ".lAndExit%d:\n", label);
 }
 
 void genLogicalOr(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOperand)
@@ -712,9 +717,8 @@ void genLogicalOr(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOper
         loadNode(leftOperand, leftBoolReg);
     }
 
-    char endLabel[128];
-    snprintf(endLabel, 128, ".lOrTrue%d", getLabel());
-    fprintf(fout, "\tbnez x%d, %s\n", leftBoolReg, endLabel);
+    int label = getLabel();
+    fprintf(fout, "\tbnez x%d, .lOrTrue%d\n", leftBoolReg, label);
     
     if (rightOperand->dataType == FLOAT_TYPE) {
         int zeroReg = getReg('f');
@@ -728,17 +732,23 @@ void genLogicalOr(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOper
         loadNode(rightOperand, rightBoolReg);
     }
 
-    fprintf(fout, "\tbnez x%d, %s\n", rightBoolReg, endLabel);
+    fprintf(fout, "\tbnez x%d, .lOrTrue%d\n", rightBoolReg, label);
 
     // evaluated as false
     storeNode(exprNode, rightBoolReg);
+    fprintf(fout, "\tj .lOrExit%d\n", label);
 
     // evaluated as true
-    fprintf(fout, "%s:\n", endLabel);
-    storeNode(exprNode, leftBoolReg);
+    fprintf(fout, ".lOrTrue%d:\n", label);
+    int trueReg = getReg('i');
+    fprintf(fout, "\tli x%d, 1\n", trueReg);
+    storeNode(exprNode, trueReg);
+    freeReg(trueReg, 'i');
 
     freeReg(leftBoolReg, 'i');
     freeReg(rightBoolReg, 'i');
+
+    fprintf(fout, "\t.lOrExit%d:\n", label);
 }
 
 void genConst(AST_NODE* constNode)
