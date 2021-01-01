@@ -369,17 +369,25 @@ void genFunctionCall(AST_NODE* stmtNode)
     AST_NODE* funcNameNode = stmtNode->child;
     char* funcName = funcNameNode->semantic_value.identifierSemanticValue.identifierName;
     AST_NODE* paramListNode = funcNameNode->rightSibling;
+    SymbolTableEntry* symtab_entry = retrieveSymbol(funcName);
+    DATA_TYPE returnType = symtab_entry ? symtab_entry->attribute->attr.functionSignature->returnType : NONE_TYPE;
+    bool hasReturnValue = returnType == INT_TYPE || returnType == FLOAT_TYPE;
 
     storeCallerSavedRegisters();
 
     if (strcmp(funcName, "write") == 0) {
         genWrite(paramListNode);
     } else if (strcmp(funcName, "read") == 0) {
-        genReadAndFread(stmtNode, 'i');
+        fprintf(fout, "\tcall _read_int\n");
     } else if (strcmp(funcName, "fread") == 0) {
-        genReadAndFread(stmtNode, 'f');
+        fprintf(fout, "\tcall _read_float\n");
     } else {
-
+        fprintf(fout, "\tcall _start_%s\n", funcName);
+    }
+    if (hasReturnValue) {
+        stmtNode->offset = allocFrame(4);
+        int reg = 10;
+        storeNode(stmtNode, reg);
     }
 
     restoreCallerSavedRegisters();
@@ -406,22 +414,12 @@ void genWrite(AST_NODE* paramListNode)
     }
 }
 
-void genReadAndFread(AST_NODE* stmtNode, char type)
-{
-    if (type == 'i') {
-        fprintf(fout, "\tcall _read_int\n");
-    } else {
-        fprintf(fout, "\tcall _read_float\n");
-    }
-
-    stmtNode->offset = allocFrame(4);
-    int reg = 10;
-    storeNode(stmtNode, reg);
-}
-
 void genReturnStmt(AST_NODE* stmtNode, char* endLabel)
 {
-    
+    int reg = 10;
+    AST_NODE* returnExprNode = stmtNode->child;
+    genExprRelatedNode(returnExprNode);
+    loadNode(returnExprNode, reg);
 }
 
 void genExprRelatedNode(AST_NODE* exprRelatedNode)
@@ -793,10 +791,10 @@ int savedRegisters[] = {9, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27};
 int allocatableRegisters[] = {9, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 5, 6, 7, 28, 29, 30, 31};
 int argumentRegisters[] = {10, 11, 12, 13, 14, 15, 16, 17};
 
-int floatTemporaryRegisters[] = {26, 27, 28, 29, 30, 31};
-int floatSavedRegisters[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-int floatAllocatableRegisters[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 26, 27, 28, 29, 30, 31};
-int floatArgumentRegisters[] = {18, 19, 20, 21, 22, 23, 24, 25};
+int floatTemporaryRegisters[] = {0, 1, 2, 3, 4, 5, 6, 7, 28, 29, 30, 31};
+int floatSavedRegisters[] = {8, 9, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27};
+int floatAllocatableRegisters[] = {8, 9, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31};
+int floatArgumentRegisters[] = {10, 11, 12, 13, 14, 15, 16, 17};
 
 bool regAvailable[32], floatRegAvailable[32];   // if a register is available
 
@@ -860,16 +858,17 @@ void freeReg(int reg, char type)
 long long savedRegOffset[32], floatSavedRegOffset[32];
 void storeCalleeSavedRegisters()
 {
+    long long currentOffset = 16;
     int numReg = sizeof(savedRegisters) / sizeof(savedRegisters[0]);
-    for (int i = 0; i < numReg; i++) {
+    for (int i = 0; i < numReg; i++, currentOffset += 8) {
         int reg = savedRegisters[i];
-        savedRegOffset[reg] = allocFrame(8);
+        savedRegOffset[reg] = currentOffset;
         fprintf(fout, "\tsd x%d, -%lld(fp)\n", reg, savedRegOffset[reg]);
     }
     numReg = sizeof(floatSavedRegisters) / sizeof(floatSavedRegisters[0]);
-    for (int i = 0; i < numReg; i++) {
+    for (int i = 0; i < numReg; i++, currentOffset += 8) {
         int reg = floatSavedRegisters[i];
-        floatSavedRegOffset[reg] = allocFrame(8);
+        floatSavedRegOffset[reg] = currentOffset;
         fprintf(fout, "\tfsd f%d, -%lld(fp)\n", reg, floatSavedRegOffset[reg]);
     }
 }
@@ -889,19 +888,33 @@ void restoreCalleeSavedRegisters()
 }
 
 long long temporaryRegOffset[32], floatTemporaryRegOffset[32];
+long long argumentRegOffset[32], floatArgumentRegOffset[32];
 void storeCallerSavedRegisters()
 {
+    long long currentOffset = 200;
     int numReg = sizeof(temporaryRegisters) / sizeof(temporaryRegisters[0]);
-    for (int i = 0; i < numReg; i++) {
+    for (int i = 0; i < numReg; i++, currentOffset += 8) {
         int reg = temporaryRegisters[i];
-        temporaryRegOffset[reg] = allocFrame(8);
+        temporaryRegOffset[reg] = currentOffset;
         fprintf(fout, "\tsd x%d, -%lld(fp)\n", reg, temporaryRegOffset[reg]);
     }
+    numReg = sizeof(argumentRegisters) / sizeof(argumentRegisters[0]);
+    for (int i = 0; i < numReg; i++, currentOffset += 8) {
+        int reg = argumentRegisters[i];
+        argumentRegOffset[reg] = currentOffset;
+        fprintf(fout, "\tsd x%d, -%lld(fp)\n", reg, argumentRegOffset[reg]);
+    }
     numReg = sizeof(floatTemporaryRegisters) / sizeof(floatTemporaryRegisters[0]);
-    for (int i = 0; i < numReg; i++) {
+    for (int i = 0; i < numReg; i++, currentOffset += 8) {
         int reg = floatTemporaryRegisters[i];
-        floatTemporaryRegOffset[reg] = allocFrame(8);
+        floatTemporaryRegOffset[reg] = currentOffset;
         fprintf(fout, "\tfsd f%d, -%lld(fp)\n", reg, floatTemporaryRegOffset[reg]);
+    }
+    numReg = sizeof(floatArgumentRegisters) / sizeof(floatArgumentRegisters[0]);
+    for (int i = 0; i < numReg; i++, currentOffset += 8) {
+        int reg = floatArgumentRegisters[i];
+        floatArgumentRegOffset[reg] = currentOffset;
+        fprintf(fout, "\tfsd f%d, -%lld(fp)\n", reg, floatArgumentRegOffset[reg]);
     }
 }
 
@@ -912,10 +925,20 @@ void restoreCallerSavedRegisters()
         int reg = temporaryRegisters[i];
         fprintf(fout, "\tld x%d, -%lld(fp)\n", reg, temporaryRegOffset[reg]);
     }
+    numReg = sizeof(argumentRegisters) / sizeof(argumentRegisters[0]);
+    for (int i = 0; i < numReg; i++) {
+        int reg = argumentRegisters[i];
+        fprintf(fout, "\tld x%d, -%lld(fp)\n", reg, argumentRegOffset[reg]);
+    }
     numReg = sizeof(floatTemporaryRegisters) / sizeof(floatTemporaryRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = floatTemporaryRegisters[i];
         fprintf(fout, "\tfld f%d, -%lld(fp)\n", reg, floatTemporaryRegOffset[reg]);
+    }
+    numReg = sizeof(floatArgumentRegisters) / sizeof(floatArgumentRegisters[0]);
+    for (int i = 0; i < numReg; i++) {
+        int reg = floatArgumentRegisters[i];
+        fprintf(fout, "\tfld f%d, -%lld(fp)\n", reg, floatArgumentRegOffset[reg]);
     }
 }
 
@@ -927,7 +950,7 @@ long long curFrameSize;
 
 void initFrameSize()
 {
-    curFrameSize = 8;
+    curFrameSize = 472;
 }
 
 long long allocFrame(long long size)
@@ -939,6 +962,11 @@ long long allocFrame(long long size)
 long long getFrameSize()
 {
     return curFrameSize;
+}
+
+void setFrameSize(long long frameSize)
+{
+    curFrameSize = frameSize;
 }
 
 /******************************
