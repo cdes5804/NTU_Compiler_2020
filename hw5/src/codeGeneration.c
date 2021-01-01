@@ -445,14 +445,6 @@ void genExprRelatedNode(AST_NODE* exprRelatedNode)
 void genVariable(AST_NODE* idNode)
 {
     idNode->offset = getSymtabEntry(idNode)->offset;
-    if (idNode->semantic_value.identifierSemanticValue.kind == ARRAY_ID) {
-        genArraySubscript(idNode->child);
-    }
-}
-
-void genArraySubscript(AST_NODE* dimNode)
-{
-    
 }
 
 void genExprNode(AST_NODE* exprNode)
@@ -1006,8 +998,10 @@ void storeNode(AST_NODE* node, int reg)
 
     // if this node is an array reference, calculate the address of the referenced element
     if (isArrayId(node)) {
+        genExprRelatedNode(node->child);
         int arrayOffsetReg = getReg('i');
         loadNode(node->child, arrayOffsetReg);
+        fprintf(fout, "\tslli x%d, x%d, 2\n", arrayOffsetReg, arrayOffsetReg);
         fprintf(fout, "\tadd x%d, x%d, x%d\n", addrReg, addrReg, arrayOffsetReg);
         freeReg(arrayOffsetReg, 'i');
     }
@@ -1039,7 +1033,7 @@ void loadNode(AST_NODE* node, int reg)
     
     // load the (base) address of this node
     if (isGlobalId(node)) {
-        fprintf(fout, "\tla, x%d, %s\n", addrReg, getSymtabEntry(node)->globalLabel);
+        fprintf(fout, "\tla x%d, %s\n", addrReg, getSymtabEntry(node)->globalLabel);
     } else if (node->nodeType == CONST_VALUE_NODE) {
         freeReg(addrReg, 'i');
         loadConstantNode(node, reg);
@@ -1050,8 +1044,10 @@ void loadNode(AST_NODE* node, int reg)
 
     // if this node is an array reference, calculate the address of the referenced element
     if (isArrayId(node)) {
+        genExprRelatedNode(node->child);
         int arrayOffsetReg = getReg('i');
         loadNode(node->child, arrayOffsetReg);
+        fprintf(fout, "\tslli x%d, x%d, 2\n", arrayOffsetReg, arrayOffsetReg);
         fprintf(fout, "\tadd x%d, x%d, x%d\n", addrReg, addrReg, arrayOffsetReg);
         freeReg(arrayOffsetReg, 'i');
     }

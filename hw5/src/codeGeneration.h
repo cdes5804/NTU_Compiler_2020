@@ -21,6 +21,7 @@ void genWhileStmt(AST_NODE* stmtNode, char* endLabel);
 void genAssignOrExpr(AST_NODE* node);
 void genForStmt(AST_NODE* stmtNode, char* endLabel);
 void genIfStmt(AST_NODE* stmtNode, char* endLabel);
+void genIfElseStmt(AST_NODE* stmtNode, char* endLabel);
 void genAssignmentStmt(AST_NODE* stmtNode);
 void genFunctionCall(AST_NODE* stmtNode);
 void genWrite(AST_NODE* paramListNode);
