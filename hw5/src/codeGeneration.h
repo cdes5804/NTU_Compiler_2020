@@ -28,6 +28,7 @@ void genReadAndFread(AST_NODE* funcNameNode, char type);
 void genReturnStmt(AST_NODE* stmtNode, char* endLabel);
 void genExprRelatedNode(AST_NODE* exprRelatedNode);
 void genVariable(AST_NODE* idNode);
+void genArraySubscript(AST_NODE* dimNode);
 void genExprNode(AST_NODE* exprNode);
 void genBinaryOpInt(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOperand);
 void genBinaryOpFloat(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOperand);

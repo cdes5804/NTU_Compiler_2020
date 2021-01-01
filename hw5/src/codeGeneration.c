@@ -157,8 +157,8 @@ void genFuncHead(char* funcName)
 char* genPrologue(char* funcName)
 {
     fprintf(fout, "\taddi sp, sp, -16\n"
-                  "\tsd ra, 16(sp)\n"
-                  "\tsd fp, 8(sp)\n"
+                  "\tsd ra, 8(sp)\n"
+                  "\tsd fp, 0(sp)\n"
                   "\taddi fp, sp, 8\n"
                   "\tla ra, _frameSize_%s\n"
                   "\tlw ra, 0(ra)\n"
@@ -170,9 +170,9 @@ void genEpilogue(char* funcName)
 {   
     fprintf(fout, "_end_%s:\n", funcName);
     restoreCalleeSavedRegisters();
-    fprintf(fout, "\tld ra, 8(fp)\n"
+    fprintf(fout, "\tld ra, 0(fp)\n"
                   "\taddi sp, fp, 8\n"
-                  "\tld fp, 0(fp)\n"
+                  "\tld fp, -8(fp)\n"
                   "\tjr ra\n");
 }
 
@@ -183,10 +183,9 @@ void genFuncDecl(AST_NODE* declarationNode)
     AST_NODE *paramListNode = funcNameNode->rightSibling;
     AST_NODE *blockNode = paramListNode->rightSibling;
     char *funcName = funcNameNode->semantic_value.identifierSemanticValue.identifierName;
-    
     initReg();
     initFrameSize();
-
+    
     genFuncHead(funcName);
     genPrologue(funcName);
     
@@ -242,10 +241,30 @@ void genStmtNode(AST_NODE* stmtNode, char* endLabel)
 
 void genWhileStmt(AST_NODE* whileNode, char* endLabel)
 {
-    int labelNo = getLabel();
-    fprintf(fout, ".Test%d:\n", labelNo);
-    genAssignOrExpr(whileNode);
-    genStmtNode(whileNode->child->rightSibling, endLabel);
+    AST_NODE *testNode = whileNode->child;
+    AST_NODE *whileBodyNode = testNode->rightSibling;
+
+    int label = getLabel();
+    fprintf(fout, ".whileTest%d:\n", label);
+
+    genAssignOrExpr(testNode);
+    int boolReg = getReg('i');
+    if (testNode->dataType == FLOAT_TYPE) {   
+        int testReg = getReg('f');
+        int zeroReg = getReg('f');
+        loadNode(testNode, testReg);
+        fprintf(fout, "\tfmv.w.x f%d, zero\n", zeroReg);
+        fprintf(fout, "\tfeq.s x%d, f%d, f%d\n", boolReg, zeroReg, testReg);
+        freeReg(testReg, 'f');
+        freeReg(zeroReg, 'f');
+    } else {
+        loadNode(testNode, boolReg);
+    }
+    fprintf(fout, "\tbeqz x%d, .whileExit%d\n", boolReg, label);
+    freeReg(boolReg, 'i');
+    genStmtNode(whileBodyNode, endLabel);
+    fprintf(fout, "\tj .whileTest%d\n", label);
+    fprintf(fout, ".whileExit%d\n", label);
 }
 
 void genAssignOrExpr(AST_NODE* node)
@@ -274,23 +293,43 @@ void genIfStmt(AST_NODE* stmtNode, char* endLabel)
     AST_NODE* boolExprNode = stmtNode->child;
     AST_NODE* ifBodyNode = boolExprNode->rightSibling;
     AST_NODE* elseBodyNode = ifBodyNode->rightSibling;
+    if (elseBodyNode->nodeType != NUL_NODE) {
+        genIfElseStmt(stmtNode, endLabel);
+        return;
+    }
+    genAssignOrExpr(boolExprNode);
+    int reg = getReg('i');
+    loadNode(boolExprNode, reg);
+    int label = getLabel();
+    fprintf(fout, "\tbeqz x%d, .ifExit%d\n", reg, label);
+    freeReg(reg, 'i');
+
+    genStmtNode(ifBodyNode, endLabel);
+    fprintf(fout, ".ifExit%d:\n", label);
+}
+
+void genIfElseStmt(AST_NODE* stmtNode, char* endLabel)
+{
+    AST_NODE* boolExprNode = stmtNode->child;
+    AST_NODE* ifBodyNode = boolExprNode->rightSibling;
+    AST_NODE* elseBodyNode = ifBodyNode->rightSibling;
 
     genAssignOrExpr(boolExprNode);
-    int reg;
-    switch (boolExprNode->dataType) {
-        case INT_TYPE:
-            reg = getReg('i');
-            loadNode(boolExprNode, reg);
-            freeReg(reg, 'i');
-            break;
-        case FLOAT_TYPE:
-            break;
-        default:
-            fprintf(stderr, "genIfStmt: Invalid boolExprNode->dataType\n");
-            break;
-    }
+    int reg = getReg('i');
+    loadNode(boolExprNode, reg);
+    char elseLabel[128], exitLabel[128];
+    int label = getLabel();
+    snprintf(elseLabel, 128, ".Ifelse%d", label);
+    snprintf(exitLabel, 128, ".Ifexit%d", label);
+    fprintf(fout, "\tbeqz x%d, %s\n", elseLabel);
+    freeReg(reg, 'i');
+    
     genStmtNode(ifBodyNode, endLabel);
+    fprintf(fout, "\tj %s\n", exitLabel);
+
+    fprintf(fout, "%s:\n", elseLabel);
     genStmtNode(elseBodyNode, endLabel);
+    fprintf(fout, "%s:\n", exitLabel);
 }
 
 void genAssignmentStmt(AST_NODE* stmtNode)
@@ -387,6 +426,14 @@ void genExprRelatedNode(AST_NODE* exprRelatedNode)
 void genVariable(AST_NODE* idNode)
 {
     idNode->offset = getSymtabEntry(idNode)->offset;
+    if (idNode->semantic_value.identifierSemanticValue.kind == ARRAY_ID) {
+        genArraySubscript(idNode->child);
+    }
+}
+
+void genArraySubscript(AST_NODE* dimNode)
+{
+    
 }
 
 void genExprNode(AST_NODE* exprNode)
