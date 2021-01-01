@@ -329,19 +329,18 @@ void genWrite(AST_NODE* paramListNode)
 {
     AST_NODE* paramNode = paramListNode->child;
     genExprRelatedNode(paramNode);
-    int reg = 0;
+    int reg = 10;
     switch (paramNode->dataType) {
         case INT_TYPE:
-            reg = 10;
             loadNode(paramNode, reg);
             fprintf(fout, "\tcall _write_int\n");
             break;
         case FLOAT_TYPE:
-            reg = 18;
+            loadNode(paramNode, reg);
             fprintf(fout, "\tcall _write_float\n");
             break;
         case CONST_STRING_TYPE:
-            reg = 10;
+            loadNode(paramNode, reg);
             fprintf(fout, "\tcall _write_str\n");
             break;
         default:
