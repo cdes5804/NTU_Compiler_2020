@@ -104,8 +104,7 @@ void genGlobalVar(AST_NODE* idNode, SymbolTableEntry* symtabEntry)
     if (isArrayId(idNode)) {
         int numElement = getSymbolSize(symtabEntry);
         for (int i = 0; i < numElement; i++)
-            fprintf(fout, "0 ");
-        fprintf(fout, "\n");
+            fprintf(fout, "0%c", ",\n"[i == numElement-1]);
     } else {
         if (idNode->semantic_value.identifierSemanticValue.kind == WITH_INIT_ID) {
             if (idNode->dataType == FLOAT_TYPE)
