@@ -734,15 +734,30 @@ void genLogicalOr(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOper
 void genConst(AST_NODE* constNode)
 {
     char label[128];
+    int reg = -1, addrReg = -1;
     switch (constNode->dataType) {
         case INT_TYPE:
+            constNode->offset = allocFrame(4);
+            reg = getReg('i');
+            fprintf(fout, "\tli x%d, %d\n", reg,
+                    constNode->semantic_value.const1->const_u.intval);
+            storeNode(constNode, reg);
+            freeReg(reg, 'i');
             break;
         case FLOAT_TYPE:
+            constNode->offset = allocFrame(4);
             snprintf(label, 128, ".Const%d", getLabel());
-            constNode->globalLabel = strdup(label);
             fprintf(fout, ".data\n");
             fprintf(fout, "%s: .word %u\n", label,
                     getFloatRepr(constNode->semantic_value.const1->const_u.fval));
+            addrReg = getReg('i');
+            fprintf(fout, ".text\n");
+            fprintf(fout, "\tla x%d, %s\n", addrReg, label);
+            reg = getReg('f');
+            fprintf(fout, "\tflw f%d, 0(x%d)\n", reg, addrReg);
+            storeNode(constNode, reg);
+            freeReg(addrReg, 'i');
+            freeReg(reg, 'f');
             break;
         case CONST_STRING_TYPE:
             snprintf(label, 128, ".Const%d", getLabel());
@@ -899,7 +914,7 @@ long long curFrameSize;
 
 void initFrameSize()
 {
-    curFrameSize = 0;
+    curFrameSize = 8;
 }
 
 long long allocFrame(long long size)
@@ -1005,6 +1020,7 @@ void loadNode(AST_NODE* node, int reg)
     if (isGlobalId(node)) {
         fprintf(fout, "\tla, x%d, %s\n", addrReg, getSymtabEntry(node)->globalLabel);
     } else if (node->nodeType == CONST_VALUE_NODE) {
+        freeReg(addrReg, 'i');
         loadConstantNode(node, reg);
         return;
     } else {
@@ -1043,12 +1059,14 @@ void loadConstantNode(AST_NODE* constNode, int reg)
     int tmpReg = -1;
     switch (constNode->dataType) {
         case INT_TYPE:
-            fprintf(fout, "\tli x%d, %d\n", reg,
-                    constNode->semantic_value.const1->const_u.intval);
+            tmpReg = getReg('i');
+            fprintf(fout, "\taddi x%d, fp, -%lld\n", tmpReg, constNode->offset);
+            fprintf(fout, "\tlw x%d, 0(x%d)\n", reg, tmpReg);
+            freeReg(tmpReg, 'i');
             break;
         case FLOAT_TYPE:
             tmpReg = getReg('i');
-            fprintf(fout, "\tla x%d, %s\n", tmpReg, constNode->globalLabel);
+            fprintf(fout, "\taddi x%d, fp, -%lld\n", tmpReg, constNode->offset);
             fprintf(fout, "\tflw f%d, 0(x%d)\n", reg, tmpReg);
             freeReg(tmpReg, 'i');
             break;
