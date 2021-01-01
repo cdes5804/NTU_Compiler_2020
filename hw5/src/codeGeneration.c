@@ -419,6 +419,7 @@ void genReturnStmt(AST_NODE* stmtNode, char* endLabel)
     AST_NODE* returnExprNode = stmtNode->child;
     genExprRelatedNode(returnExprNode);
     loadNode(returnExprNode, reg);
+    fprintf(fout, "\tj %s\n", endLabel);
 }
 
 void genExprRelatedNode(AST_NODE* exprRelatedNode)
