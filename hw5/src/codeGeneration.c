@@ -1173,7 +1173,7 @@ bool isGlobalId(AST_NODE* node)
 bool isArrayId(AST_NODE* node)
 {
     return node->nodeType == IDENTIFIER_NODE &&
-           node->semantic_value.identifierSemanticValue.kind == ARRAY_ID;
+           getSymtabEntry(node)->attribute->attr.typeDescriptor->kind == ARRAY_TYPE_DESCRIPTOR;
 }
 
 unsigned getFloatRepr(float f)
