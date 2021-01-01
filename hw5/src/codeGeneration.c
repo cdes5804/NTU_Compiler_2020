@@ -264,7 +264,7 @@ void genWhileStmt(AST_NODE* whileNode, char* endLabel)
     freeReg(boolReg, 'i');
     genStmtNode(whileBodyNode, endLabel);
     fprintf(fout, "\tj .whileTest%d\n", label);
-    fprintf(fout, ".whileExit%d\n", label);
+    fprintf(fout, ".whileExit%d:\n", label);
 }
 
 void genAssignOrExpr(AST_NODE* node)
@@ -298,11 +298,23 @@ void genIfStmt(AST_NODE* stmtNode, char* endLabel)
         return;
     }
     genAssignOrExpr(boolExprNode);
-    int reg = getReg('i');
-    loadNode(boolExprNode, reg);
+
+    int boolReg = getReg('i');
+    if (boolExprNode->dataType == FLOAT_TYPE) {   
+        int testReg = getReg('f');
+        int zeroReg = getReg('f');
+        loadNode(boolExprNode, testReg);
+        fprintf(fout, "\tfmv.w.x f%d, zero\n", zeroReg);
+        fprintf(fout, "\tfeq.s x%d, f%d, f%d\n", boolReg, zeroReg, testReg);
+        freeReg(testReg, 'f');
+        freeReg(zeroReg, 'f');
+    } else {
+        loadNode(boolExprNode, boolReg);
+    }
+
     int label = getLabel();
-    fprintf(fout, "\tbeqz x%d, .ifExit%d\n", reg, label);
-    freeReg(reg, 'i');
+    fprintf(fout, "\tbeqz x%d, .ifExit%d\n", boolReg, label);
+    freeReg(boolReg, 'i');
 
     genStmtNode(ifBodyNode, endLabel);
     fprintf(fout, ".ifExit%d:\n", label);
@@ -315,21 +327,30 @@ void genIfElseStmt(AST_NODE* stmtNode, char* endLabel)
     AST_NODE* elseBodyNode = ifBodyNode->rightSibling;
 
     genAssignOrExpr(boolExprNode);
-    int reg = getReg('i');
-    loadNode(boolExprNode, reg);
-    char elseLabel[128], exitLabel[128];
+
+    int boolReg = getReg('i');
+    if (boolExprNode->dataType == FLOAT_TYPE) {   
+        int testReg = getReg('f');
+        int zeroReg = getReg('f');
+        loadNode(boolExprNode, testReg);
+        fprintf(fout, "\tfmv.w.x f%d, zero\n", zeroReg);
+        fprintf(fout, "\tfeq.s x%d, f%d, f%d\n", boolReg, zeroReg, testReg);
+        freeReg(testReg, 'f');
+        freeReg(zeroReg, 'f');
+    } else {
+        loadNode(boolExprNode, boolReg);
+    }
+
     int label = getLabel();
-    snprintf(elseLabel, 128, ".Ifelse%d", label);
-    snprintf(exitLabel, 128, ".Ifexit%d", label);
-    fprintf(fout, "\tbeqz x%d, %s\n", elseLabel);
-    freeReg(reg, 'i');
+    fprintf(fout, "\tbeqz x%d, .ifElse%d\n", boolReg, label);
+    freeReg(boolReg, 'i');
     
     genStmtNode(ifBodyNode, endLabel);
-    fprintf(fout, "\tj %s\n", exitLabel);
+    fprintf(fout, "\tj .ifExit%d\n", label);
 
-    fprintf(fout, "%s:\n", elseLabel);
+    fprintf(fout, ".ifElse%d:\n", label);
     genStmtNode(elseBodyNode, endLabel);
-    fprintf(fout, "%s:\n", exitLabel);
+    fprintf(fout, ".ifExit%d:\n", label);
 }
 
 void genAssignmentStmt(AST_NODE* stmtNode)
