@@ -341,11 +341,23 @@ void genIfElseStmt(AST_NODE* stmtNode, char* endLabel)
     }
 
     int label = getLabel();
-    fprintf(fout, "\tbeqz x%d, .ifElse%d\n", boolReg, label);
+    fprintf(fout, "\tbeqz x%d, .jumpToElse%d\n", boolReg, label);
     freeReg(boolReg, 'i');
-    
+    fprintf(fout, "\tj .ifTrue%d\n", label);
+
+    fprintf(fout, ".jumpToElse%d:\n", label);
+    int addrReg = getReg('i');
+    fprintf(fout, "\tla x%d, .ifElse%d\n", addrReg, label);
+    fprintf(fout, "\tjr x%d\n", addrReg);
+    freeReg(addrReg, 'i');
+
+    fprintf(fout, ".ifTrue%d:\n", label);
     genStmtNode(ifBodyNode, endLabel);
-    fprintf(fout, "\tj .ifExit%d\n", label);
+
+    addrReg = getReg('i');
+    fprintf(fout, "\tla x%d, .ifExit%d\n", addrReg, label);
+    fprintf(fout, "\tjr x%d\n", addrReg);
+    freeReg(addrReg, 'i');
 
     fprintf(fout, ".ifElse%d:\n", label);
     genStmtNode(elseBodyNode, endLabel);
