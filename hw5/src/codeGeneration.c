@@ -688,15 +688,15 @@ void genLogicalAnd(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOpe
     fprintf(fout, "\tbeqz x%d, .lAndFalse%d\n", rightBoolReg, label);
 
     // evaluated as true
-    storeNode(exprNode, rightBoolReg);
+    int trueReg = getReg('i');
+    fprintf(fout, "\tli x%d, 1\n", trueReg);
+    storeNode(exprNode, trueReg);
+    freeReg(trueReg, 'i');
     fprintf(fout, "\tj .lAndExit%d\n", label);
 
     // evaluated as false
     fprintf(fout, ".lAndFalse%d:\n", label);
-    int falseReg = getReg('i');
-    fprintf(fout, "\tli x%d, 0\n", falseReg);
-    storeNode(exprNode, falseReg);
-    freeReg(falseReg, 'i');
+    storeNode(exprNode, 0);
 
     freeReg(leftBoolReg, 'i');
     freeReg(rightBoolReg, 'i');
@@ -738,7 +738,7 @@ void genLogicalOr(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOper
     fprintf(fout, "\tbnez x%d, .lOrTrue%d\n", rightBoolReg, label);
 
     // evaluated as false
-    storeNode(exprNode, rightBoolReg);
+    storeNode(exprNode, 0);
     fprintf(fout, "\tj .lOrExit%d\n", label);
 
     // evaluated as true
