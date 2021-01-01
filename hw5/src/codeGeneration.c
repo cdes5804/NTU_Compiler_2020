@@ -315,9 +315,9 @@ void genFunctionCall(AST_NODE* stmtNode)
     if (strcmp(funcName, "write") == 0) {
         genWrite(paramListNode);
     } else if (strcmp(funcName, "read") == 0) {
-        genReadAndFread(funcNameNode, 'i');
+        genReadAndFread(stmtNode, 'i');
     } else if (strcmp(funcName, "fread") == 0) {
-        genReadAndFread(funcNameNode, 'f');
+        genReadAndFread(stmtNode, 'f');
     } else {
 
     }
@@ -330,17 +330,15 @@ void genWrite(AST_NODE* paramListNode)
     AST_NODE* paramNode = paramListNode->child;
     genExprRelatedNode(paramNode);
     int reg = 10;
+    loadNode(paramNode, reg);
     switch (paramNode->dataType) {
         case INT_TYPE:
-            loadNode(paramNode, reg);
             fprintf(fout, "\tcall _write_int\n");
             break;
         case FLOAT_TYPE:
-            loadNode(paramNode, reg);
             fprintf(fout, "\tcall _write_float\n");
             break;
         case CONST_STRING_TYPE:
-            loadNode(paramNode, reg);
             fprintf(fout, "\tcall _write_str\n");
             break;
         default:
@@ -348,7 +346,7 @@ void genWrite(AST_NODE* paramListNode)
     }
 }
 
-void genReadAndFread(AST_NODE* funcNameNode, char type)
+void genReadAndFread(AST_NODE* stmtNode, char type)
 {
     if (type == 'i') {
         fprintf(fout, "\tcall _read_int\n");
@@ -356,14 +354,14 @@ void genReadAndFread(AST_NODE* funcNameNode, char type)
         fprintf(fout, "\tcall _read_float\n");
     }
 
-    funcNameNode->offset = allocFrame(4);
-    int reg = type == 'i' ? 10 : 18;
-    storeNode(funcNameNode, reg);
+    stmtNode->offset = allocFrame(4);
+    int reg = 10;
+    storeNode(stmtNode, reg);
 }
 
 void genReturnStmt(AST_NODE* stmtNode, char* endLabel)
 {
-
+    
 }
 
 void genExprRelatedNode(AST_NODE* exprRelatedNode)
@@ -837,12 +835,12 @@ void restoreCallerSavedRegisters()
     int numReg = sizeof(temporaryRegisters) / sizeof(temporaryRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = temporaryRegisters[i];
-        fprintf(fout, "\tld x%d, %lld(fp)\n", reg, temporaryRegOffset[reg]);
+        fprintf(fout, "\tld x%d, %lld(sp)\n", reg, temporaryRegOffset[reg]);
     }
     numReg = sizeof(floatTemporaryRegisters) / sizeof(floatTemporaryRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = floatTemporaryRegisters[i];
-        fprintf(fout, "\tfld f%d, %lld(fp)\n", reg, floatTemporaryRegOffset[reg]);
+        fprintf(fout, "\tfld f%d, %lld(sp)\n", reg, floatTemporaryRegOffset[reg]);
     }
 }
 
@@ -946,17 +944,15 @@ void storeNode(AST_NODE* node, int reg)
             fprintf(stderr, "storeNode: Invalid data type\n");
             exit(1);
     }
+
+    freeReg(addrReg, 'i');
 }
 
 void loadNode(AST_NODE* node, int reg)
 {
     /* node->offset should be the symbol offset if node is a local variable reference */
     int addrReg = -1;
-    if (node->dataType == FLOAT_TYPE) {
-        addrReg = getReg('f');
-    } else {
-        addrReg = getReg('i');
-    }
+    addrReg = getReg('i');
     
     // load the (base) address of this node
     if (isGlobalId(node)) {
@@ -991,6 +987,8 @@ void loadNode(AST_NODE* node, int reg)
             fprintf(stderr, "loadNode: Invalid data type\n");
             exit(1);
     }
+
+    freeReg(addrReg, 'i');
 }
 
 void loadConstantNode(AST_NODE* constNode, int reg)
