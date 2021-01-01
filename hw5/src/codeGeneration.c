@@ -151,15 +151,15 @@ void genFuncHead(char* funcName)
 {
     fprintf(fout, ".text\n"
                   ".global %s\n"
-                  "%s:\n", funcName, funcName);
+                  "_start_%s:\n", funcName, funcName);
 }
 
 char* genPrologue(char* funcName)
 {
     fprintf(fout, "\taddi sp, sp, -16\n"
-                  "\tsd ra, 8(sp)\n"
-                  "\tsd fp, 0(sp)\n"
-                  "\tmv fp, sp\n"
+                  "\tsd ra, 16(sp)\n"
+                  "\tsd fp, 8(sp)\n"
+                  "\taddi fp, sp, 8\n"
                   "\tla ra, _frameSize_%s\n"
                   "\tlw ra, 0(ra)\n"
                   "\tsub sp, sp, ra\n", funcName);
@@ -171,7 +171,7 @@ void genEpilogue(char* funcName)
     fprintf(fout, "_end_%s:\n", funcName);
     restoreCalleeSavedRegisters();
     fprintf(fout, "\tld ra, 8(fp)\n"
-                  "\taddi sp, fp, -8\n"
+                  "\taddi sp, fp, 8\n"
                   "\tld fp, 0(fp)\n"
                   "\tjr ra\n");
 }
@@ -191,7 +191,7 @@ void genFuncDecl(AST_NODE* declarationNode)
     genPrologue(funcName);
     
     char endLabel[128];
-    snprintf(endLabel, 128, ".end_%s", funcName);
+    snprintf(endLabel, 128, "_end_%s", funcName);
     genBlockNode(blockNode, endLabel);
 
     fprintf(fout, "\tj %s\n", endLabel);
@@ -306,7 +306,60 @@ void genAssignmentStmt(AST_NODE* stmtNode)
 
 void genFunctionCall(AST_NODE* stmtNode)
 {
+    AST_NODE* funcNameNode = stmtNode->child;
+    char* funcName = funcNameNode->semantic_value.identifierSemanticValue.identifierName;
+    AST_NODE* paramListNode = funcNameNode->rightSibling;
 
+    storeCallerSavedRegisters();
+
+    if (strcmp(funcName, "write") == 0) {
+        genWrite(paramListNode);
+    } else if (strcmp(funcName, "read") == 0) {
+        genReadAndFread(funcNameNode, 'i');
+    } else if (strcmp(funcName, "fread") == 0) {
+        genReadAndFread(funcNameNode, 'f');
+    } else {
+
+    }
+
+    restoreCallerSavedRegisters();
+}
+
+void genWrite(AST_NODE* paramListNode)
+{
+    AST_NODE* paramNode = paramListNode->child;
+    genExprRelatedNode(paramNode);
+    int reg = 0;
+    switch (paramNode->dataType) {
+        case INT_TYPE:
+            reg = 10;
+            loadNode(paramNode, reg);
+            fprintf(fout, "\tcall _write_int\n");
+            break;
+        case FLOAT_TYPE:
+            reg = 18;
+            fprintf(fout, "\tcall _write_float\n");
+            break;
+        case CONST_STRING_TYPE:
+            reg = 10;
+            fprintf(fout, "\tcall _write_str\n");
+            break;
+        default:
+            break;
+    }
+}
+
+void genReadAndFread(AST_NODE* funcNameNode, char type)
+{
+    if (type == 'i') {
+        fprintf(fout, "\tcall _read_int\n");
+    } else {
+        fprintf(fout, "\tcall _read_float\n");
+    }
+
+    funcNameNode->offset = allocFrame(4);
+    int reg = type == 'i' ? 10 : 18;
+    storeNode(funcNameNode, reg);
 }
 
 void genReturnStmt(AST_NODE* stmtNode, char* endLabel)
@@ -652,46 +705,11 @@ void genConst(AST_NODE* constNode)
             constNode->globalLabel = strdup(label);
             fprintf(fout, ".data\n"
                           ".align 3\n");
-            fprintf(fout, "%s: .string \"%s\"\n", label,
+            fprintf(fout, "%s: .string %s\n", label,
                     constNode->semantic_value.const1->const_u.sc);
             break;
     }
     fprintf(fout, ".text\n");
-}
-void genWriteCall(AST_NODE* paramListNode)
-{
-    AST_NODE* paramNode = paramListNode->child;
-    genExprRelatedNode(paramNode);
-    int reg = getReg('i');
-    switch (paramNode->dataType) {
-        case INT_TYPE:
-            fprintf(fout, "lw a0, some memory location");
-            fprintf(fout, "la %d, _write_int", reg);
-            fprintf(fout, "call %d", reg);
-            break;
-        case FLOAT_TYPE:
-            fprintf(fout, "flw fa0, some memory location");
-            fprintf(fout, "la %d, _write_float", reg);
-            fprintf(fout, "call %d", reg);
-            break;
-        case CONST_STRING_TYPE:
-            fprintf(fout, "lw a0, some memory location");
-            fprintf(fout, "la %d, _write_str", reg);
-            fprintf(fout, "call %d", reg);
-            break;
-        default:
-            break;
-    }
-}
-
-void genReadCall()
-{
-
-}
-
-void genFredCall()
-{
-    
 }
 
 /******************************
@@ -774,13 +792,13 @@ void storeCalleeSavedRegisters()
     for (int i = 0; i < numReg; i++) {
         int reg = savedRegisters[i];
         savedRegOffset[reg] = allocFrame(8);
-        fprintf(fout, "\tsd x%d, -%lld(fp)\n", reg, savedRegOffset[reg]);
+        fprintf(fout, "\tsd x%d, %lld(sp)\n", reg, savedRegOffset[reg]);
     }
     numReg = sizeof(floatSavedRegisters) / sizeof(floatSavedRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = floatSavedRegisters[i];
         floatSavedRegOffset[reg] = allocFrame(8);
-        fprintf(fout, "\tfsd f%d, -%lld(fp)\n", reg, floatSavedRegOffset[reg]);
+        fprintf(fout, "\tfsd f%d, %lld(sp)\n", reg, floatSavedRegOffset[reg]);
     }
 }
 
@@ -789,12 +807,12 @@ void restoreCalleeSavedRegisters()
     int numReg = sizeof(savedRegisters) / sizeof(savedRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = savedRegisters[i];
-        fprintf(fout, "\tld x%d, -%lld(fp)\n", reg, savedRegOffset[reg]);
+        fprintf(fout, "\tld x%d, %lld(sp)\n", reg, savedRegOffset[reg]);
     }
     numReg = sizeof(floatSavedRegisters) / sizeof(floatSavedRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = floatSavedRegisters[i];
-        fprintf(fout, "\tfld f%d, -%lld(fp)\n", reg, floatSavedRegOffset[reg]);
+        fprintf(fout, "\tfld f%d, %lld(sp)\n", reg, floatSavedRegOffset[reg]);
     }
 }
 
@@ -805,13 +823,13 @@ void storeCallerSavedRegisters()
     for (int i = 0; i < numReg; i++) {
         int reg = temporaryRegisters[i];
         temporaryRegOffset[reg] = allocFrame(8);
-        fprintf(fout, "\tsd x%d, -%lld(fp)\n", reg, temporaryRegOffset[reg]);
+        fprintf(fout, "\tsd x%d, %lld(sp)\n", reg, temporaryRegOffset[reg]);
     }
     numReg = sizeof(floatTemporaryRegisters) / sizeof(floatTemporaryRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = floatTemporaryRegisters[i];
         floatTemporaryRegOffset[reg] = allocFrame(8);
-        fprintf(fout, "\tfsd f%d, -%lld(fp)\n", reg, floatTemporaryRegOffset[reg]);
+        fprintf(fout, "\tfsd f%d, %lld(sp)\n", reg, floatTemporaryRegOffset[reg]);
     }
 }
 
@@ -820,12 +838,12 @@ void restoreCallerSavedRegisters()
     int numReg = sizeof(temporaryRegisters) / sizeof(temporaryRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = temporaryRegisters[i];
-        fprintf(fout, "\tld x%d, -%lld(fp)\n", reg, temporaryRegOffset[reg]);
+        fprintf(fout, "\tld x%d, %lld(fp)\n", reg, temporaryRegOffset[reg]);
     }
     numReg = sizeof(floatTemporaryRegisters) / sizeof(floatTemporaryRegisters[0]);
     for (int i = 0; i < numReg; i++) {
         int reg = floatTemporaryRegisters[i];
-        fprintf(fout, "\tfld f%d, -%lld(fp)\n", reg, floatTemporaryRegOffset[reg]);
+        fprintf(fout, "\tfld f%d, %lld(fp)\n", reg, floatTemporaryRegOffset[reg]);
     }
 }
 

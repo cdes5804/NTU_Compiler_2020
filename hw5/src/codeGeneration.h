@@ -23,6 +23,8 @@ void genForStmt(AST_NODE* stmtNode, char* endLabel);
 void genIfStmt(AST_NODE* stmtNode, char* endLabel);
 void genAssignmentStmt(AST_NODE* stmtNode);
 void genFunctionCall(AST_NODE* stmtNode);
+void genWrite(AST_NODE* paramListNode);
+void genReadAndFread(AST_NODE* funcNameNode, char type);
 void genReturnStmt(AST_NODE* stmtNode, char* endLabel);
 void genExprRelatedNode(AST_NODE* exprRelatedNode);
 void genVariable(AST_NODE* idNode);
@@ -41,6 +43,8 @@ int getReg(char type);
 void freeReg(int reg, char type);
 void storeCalleeSavedRegisters();
 void restoreCalleeSavedRegisters();
+void storeCallerSavedRegisters();
+void restoreCallerSavedRegisters();
 
 /* Stack Management */
 void initFrameSize();
