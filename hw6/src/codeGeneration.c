@@ -537,6 +537,10 @@ void genExprNode(AST_NODE* exprNode)
         case BINARY_OPERATION:
             leftOperand = exprNode->child;
             rightOperand = leftOperand->rightSibling;
+<<<<<<< HEAD
+=======
+
+>>>>>>> master
             // special case: short-circuit && ||
             if (exprNode->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_AND) {
                 genLogicalAnd(exprNode, leftOperand, rightOperand);
