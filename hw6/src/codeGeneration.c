@@ -1093,19 +1093,19 @@ void pushParameters(AST_NODE* paramListNode)
         long long offset = paramNode->offset;
         if (paramNode->dataType == INT_PTR_TYPE || paramNode->dataType == FLOAT_PTR_TYPE) {
             int reg = getReg('i');
-            fprintf(fout, "\tld x%d, -%lld(fp)\n", reg, offset);
+            loadNode(paramNode, reg);
             fprintf(fout, "\tsd x%d, %lld(sp)\n", reg, processedSize);
             freeReg(reg, 'i');
             processedSize += 8;
         } else if (paramNode->dataType == INT_TYPE) {
             int reg = getReg('i');
-            fprintf(fout, "\tlw x%d, -%lld(fp)\n", reg, offset);
+            loadNode(paramNode, reg);
             fprintf(fout, "\tsw x%d, %lld(sp)\n", reg, processedSize);
             freeReg(reg, 'i');
             processedSize += 4;
         } else {
             int reg = getReg('f');
-            fprintf(fout, "\tflw f%d, -%lld(fp)\n", reg, offset);
+            loadNode(paramNode, reg);
             fprintf(fout, "\tfsw f%d, %lld(sp)\n", reg, processedSize);
             freeReg(reg, 'f');
             processedSize += 4;
