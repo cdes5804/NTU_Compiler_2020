@@ -465,14 +465,9 @@ void genFunctionCall(AST_NODE* stmtNode)
                 paramNode = paramNode->rightSibling;
             }
             pushParameters(paramListNode);
-            frameSize = getFrameSize();
-            int reg = getReg('i');
-            fprintf(fout, "\tli x%d, %lld\n", reg, frameSize);
-            fprintf(fout, "\tsub x%d, ra, x%d\n", reg, reg);
-            fprintf(fout, "\tsub sp, sp, x%d\n", reg);
-            freeReg(reg, 'i');
         }
         fprintf(fout, "\tcall _start_%s\n", funcName);
+        popParameters(paramListNode);
     }
     if (hasReturnValue) {
         stmtNode->offset = allocFrame(4);
@@ -480,15 +475,6 @@ void genFunctionCall(AST_NODE* stmtNode)
         storeNode(stmtNode, reg);
     }
     restoreCallerSavedRegisters();
-    if (hasParameters) {
-        frameSize = getFrameSize();
-        int reg = getReg('i');
-        fprintf(fout, "\tli x%d, %lld\n", reg, frameSize);
-        fprintf(fout, "\tsub x%d, ra, x%d\n", reg, reg);
-        fprintf(fout, "\tadd sp, sp, x%d\n",reg);
-        freeReg(reg, 'i');
-        popParameters(paramListNode);
-    }
 }
 
 void genWrite(AST_NODE* paramListNode)
@@ -1003,7 +989,6 @@ void restoreCalleeSavedRegisters()
 
 long long temporaryRegOffset[32], floatTemporaryRegOffset[32];
 long long argumentRegOffset[32], floatArgumentRegOffset[32];
-int returnAddr;
 void storeCallerSavedRegisters()
 {
     long long currentOffset = 200;
@@ -1031,8 +1016,6 @@ void storeCallerSavedRegisters()
         floatArgumentRegOffset[reg] = currentOffset;
         fprintf(fout, "\tfsd f%d, -%lld(fp)\n", reg, floatArgumentRegOffset[reg]);
     }
-    returnAddr = currentOffset;
-    fprintf(fout, "\tsd ra, -%lld(fp)\n", returnAddr);
 }
 
 void restoreCallerSavedRegisters()
@@ -1057,7 +1040,6 @@ void restoreCallerSavedRegisters()
         int reg = floatArgumentRegisters[i];
         fprintf(fout, "\tfld f%d, -%lld(fp)\n", reg, floatArgumentRegOffset[reg]);
     }
-    fprintf(fout, "\tld ra, -%lld(fp)\n", returnAddr);
 }
 
 /******************************
@@ -1096,36 +1078,41 @@ void setFrameSize(long long frameSize)
 void pushParameters(AST_NODE* paramListNode)
 {
     AST_NODE* paramNode = paramListNode->child;
+    long long totalSize = 0;
     while (paramNode) {
         if (paramNode->dataType == INT_PTR_TYPE || paramNode->dataType == FLOAT_PTR_TYPE) {
-            allocFrame(8);
+            totalSize += 8;
         } else {
-            allocFrame(4);
+            totalSize += 4;
         }
         paramNode = paramNode->rightSibling;
     }
+    int reg = getReg('i');
+    fprintf(fout, "\tli x%d, %lld\n", reg, totalSize);
+    fprintf(fout, "\tsub sp, sp, x%d\n", reg);
+    freeReg(reg, 'i');
     paramNode = paramListNode->child;
-    long long totalSize = 0;
+    long long processedSize = 0;
     while (paramNode) {
         long long offset = paramNode->offset;
         if (paramNode->dataType == INT_PTR_TYPE || paramNode->dataType == FLOAT_PTR_TYPE) {
             int reg = getReg('i');
             fprintf(fout, "\tld x%d, -%lld(fp)\n", reg, offset);
-            fprintf(fout, "\tsd x%d, -%lld(fp)\n", reg, getFrameSize() - totalSize);
+            fprintf(fout, "\tsd x%d, %lld(sp)\n", reg, processedSize);
             freeReg(reg, 'i');
-            totalSize += 8;
+            processedSize += 8;
         } else if (paramNode->dataType == INT_TYPE) {
             int reg = getReg('i');
             fprintf(fout, "\tlw x%d, -%lld(fp)\n", reg, offset);
-            fprintf(fout, "\tsw x%d, -%lld(fp)\n", reg, getFrameSize() - totalSize);
+            fprintf(fout, "\tsw x%d, %lld(sp)\n", reg, processedSize);
             freeReg(reg, 'i');
-            totalSize += 4;
+            processedSize += 4;
         } else {
             int reg = getReg('f');
             fprintf(fout, "\tflw f%d, -%lld(fp)\n", reg, offset);
-            fprintf(fout, "\tfsw f%d, -%lld(fp)\n", reg, getFrameSize() - totalSize);
+            fprintf(fout, "\tfsw f%d, %lld(sp)\n", reg, processedSize);
             freeReg(reg, 'f');
-            totalSize += 4;
+            processedSize += 4;
         }
         paramNode = paramNode->rightSibling;
     }
@@ -1134,14 +1121,19 @@ void pushParameters(AST_NODE* paramListNode)
 void popParameters(AST_NODE* paramListNode)
 {
     AST_NODE* paramNode = paramListNode->child;
+    long long totalSize = 0;
     while (paramNode) {
         if (paramNode->dataType == INT_PTR_TYPE || paramNode->dataType == FLOAT_PTR_TYPE) {
-            freeFrame(8);
+            totalSize += 8;
         } else {
-            freeFrame(4);
+            totalSize += 4;
         }
         paramNode = paramNode->rightSibling;
     }
+    int reg = getReg('i');
+    fprintf(fout, "\tli x%d, %lld\n", reg, totalSize);
+    fprintf(fout, "\tadd sp, sp, x%d\n", reg);
+    freeReg(reg, 'i');
 }
 
 /******************************
