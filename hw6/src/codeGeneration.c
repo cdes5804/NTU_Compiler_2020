@@ -86,7 +86,7 @@ void genDeclarationNode(AST_NODE* declarationNode)
             genFuncDecl(declarationNode);
             break;
         case FUNCTION_PARAMETER_DECL:
-            genFuncParamDecl(declarationNode);
+            //genFuncParamDecl(declarationNode);
             break;
         default:
             fprintf(stderr, "Invalid declaration type in declaration node\n");
@@ -540,9 +540,6 @@ void genExprNode(AST_NODE* exprNode)
         case BINARY_OPERATION:
             leftOperand = exprNode->child;
             rightOperand = leftOperand->rightSibling;
-            genExprRelatedNode(leftOperand);
-            genExprRelatedNode(rightOperand);
-            
             // special case: short-circuit && ||
             if (exprNode->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_AND) {
                 genLogicalAnd(exprNode, leftOperand, rightOperand);
@@ -551,6 +548,9 @@ void genExprNode(AST_NODE* exprNode)
                 genLogicalOr(exprNode, leftOperand, rightOperand);
                 break;
             }
+
+            genExprRelatedNode(leftOperand);
+            genExprRelatedNode(rightOperand);
 
             // If op is comparison or logical, then expr->dataType may not == biggerType
             DATA_TYPE biggerType = getBiggerType(leftOperand->dataType, rightOperand->dataType);
@@ -744,8 +744,8 @@ void genUnaryOpFloat(AST_NODE* exprNode, AST_NODE* operand)
 
 void genLogicalAnd(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOperand)
 {
+    genExprRelatedNode(leftOperand);
     int leftBoolReg = getReg('i');
-    int rightBoolReg = getReg('i');
     if (leftOperand->dataType == FLOAT_TYPE) {
         int zeroReg = getReg('f');
         int leftOperandReg = getReg('f');
@@ -760,7 +760,10 @@ void genLogicalAnd(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOpe
 
     int label = getLabel();
     fprintf(fout, "\tbeqz x%d, .lAndFalse%d\n", leftBoolReg, label);
-    
+    freeReg(leftBoolReg, 'i');
+
+    genExprRelatedNode(rightOperand);
+    int rightBoolReg = getReg('i');
     if (rightOperand->dataType == FLOAT_TYPE) {
         int zeroReg = getReg('f');
         int rightOperandReg = getReg('f');
@@ -774,6 +777,7 @@ void genLogicalAnd(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOpe
     }
 
     fprintf(fout, "\tbeqz x%d, .lAndFalse%d\n", rightBoolReg, label);
+    freeReg(rightBoolReg, 'i');
 
     // evaluated as true
     int trueReg = getReg('i');
@@ -786,16 +790,13 @@ void genLogicalAnd(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOpe
     fprintf(fout, ".lAndFalse%d:\n", label);
     storeNode(exprNode, 0);
 
-    freeReg(leftBoolReg, 'i');
-    freeReg(rightBoolReg, 'i');
-
     fprintf(fout, ".lAndExit%d:\n", label);
 }
 
 void genLogicalOr(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOperand)
 {
+    genExprRelatedNode(leftOperand);
     int leftBoolReg = getReg('i');
-    int rightBoolReg = getReg('i');
     if (leftOperand->dataType == FLOAT_TYPE) {
         int zeroReg = getReg('f');
         int leftOperandReg = getReg('f');
@@ -810,7 +811,10 @@ void genLogicalOr(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOper
 
     int label = getLabel();
     fprintf(fout, "\tbnez x%d, .lOrTrue%d\n", leftBoolReg, label);
-    
+    freeReg(leftBoolReg, 'i');
+
+    genExprRelatedNode(rightOperand);
+    int rightBoolReg = getReg('i');
     if (rightOperand->dataType == FLOAT_TYPE) {
         int zeroReg = getReg('f');
         int rightOperandReg = getReg('f');
@@ -824,6 +828,7 @@ void genLogicalOr(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOper
     }
 
     fprintf(fout, "\tbnez x%d, .lOrTrue%d\n", rightBoolReg, label);
+    freeReg(rightBoolReg, 'i');
 
     // evaluated as false
     storeNode(exprNode, 0);
@@ -835,9 +840,6 @@ void genLogicalOr(AST_NODE* exprNode, AST_NODE* leftOperand, AST_NODE* rightOper
     fprintf(fout, "\tli x%d, 1\n", trueReg);
     storeNode(exprNode, trueReg);
     freeReg(trueReg, 'i');
-
-    freeReg(leftBoolReg, 'i');
-    freeReg(rightBoolReg, 'i');
 
     fprintf(fout, "\t.lOrExit%d:\n", label);
 }
@@ -1050,18 +1052,12 @@ long long curFrameSize;
 
 void initFrameSize()
 {
-    curFrameSize = 480;
+    curFrameSize = 472;
 }
 
 long long allocFrame(long long size)
 {
     curFrameSize += size;
-    return curFrameSize;
-}
-
-long long freeFrame(long long size)
-{
-    curFrameSize -= size;
     return curFrameSize;
 }
 
@@ -1176,6 +1172,27 @@ void typeConversion(AST_NODE* node, DATA_TYPE targetType)
     freeReg(floatReg, 'f');
 }
 
+void genArrayOffset(int arrayOffsetReg, AST_NODE* arrayIdNode)
+{
+    ArrayProperties arrProp = getSymtabEntry(arrayIdNode)->attribute->attr.typeDescriptor->properties.arrayProperties;
+    AST_NODE *dimNode = arrayIdNode->child;
+    fprintf(fout, "\txor x%d, x%d, x%d\n", arrayOffsetReg, arrayOffsetReg, arrayOffsetReg);
+    for (int i = 0; dimNode; dimNode = dimNode->rightSibling, i++) {
+        if (i > 0) {
+            int tmpReg = getReg('i');
+            fprintf(fout, "\tli x%d, %d\n", tmpReg, arrProp.sizeInEachDimension[i]);
+            fprintf(fout, "\tmul x%d, x%d, x%d\n", arrayOffsetReg, arrayOffsetReg, tmpReg);
+            freeReg(tmpReg, 'i');
+        }
+
+        genExprRelatedNode(dimNode);
+        int indiceReg = getReg('i');
+        loadNode(dimNode, indiceReg);
+        fprintf(fout, "\tadd x%d, x%d, x%d\n", arrayOffsetReg, arrayOffsetReg, indiceReg);
+        freeReg(indiceReg, 'i');
+    }
+}
+
 void storeNode(AST_NODE* node, int reg)
 {   
     /* the data type of reg and node should match */
@@ -1193,9 +1210,10 @@ void storeNode(AST_NODE* node, int reg)
 
     // if this node is an array reference, calculate the address of the referenced element
     if (isArrayId(node)) {
-        genExprRelatedNode(node->child);
+        if (getSymtabEntry(node)->offset < 0)
+            fprintf(fout, "\tld x%d, 0(x%d)\n", addrReg, addrReg);
         int arrayOffsetReg = getReg('i');
-        loadNode(node->child, arrayOffsetReg);
+        genArrayOffset(arrayOffsetReg, node);
         fprintf(fout, "\tslli x%d, x%d, 2\n", arrayOffsetReg, arrayOffsetReg);
         fprintf(fout, "\tadd x%d, x%d, x%d\n", addrReg, addrReg, arrayOffsetReg);
         freeReg(arrayOffsetReg, 'i');
@@ -1233,18 +1251,27 @@ void loadNode(AST_NODE* node, int reg)
         freeReg(addrReg, 'i');
         loadConstantNode(node, reg);
         return;
+    } else if (node->nodeType == IDENTIFIER_NODE) {
+        addi(addrReg, getSymtabEntry(node)->offset);
     } else {
         addi(addrReg, node->offset);
     }
 
     // if this node is an array reference, calculate the address of the referenced element
     if (isArrayId(node)) {
-        genExprRelatedNode(node->child);
+        if (getSymtabEntry(node)->offset < 0)
+            fprintf(fout, "\tld x%d, 0(x%d)\n", addrReg, addrReg);
         int arrayOffsetReg = getReg('i');
-        loadNode(node->child, arrayOffsetReg);
+        genArrayOffset(arrayOffsetReg, node);
         fprintf(fout, "\tslli x%d, x%d, 2\n", arrayOffsetReg, arrayOffsetReg);
         fprintf(fout, "\tadd x%d, x%d, x%d\n", addrReg, addrReg, arrayOffsetReg);
         freeReg(arrayOffsetReg, 'i');
+
+        if (node->dataType == INT_PTR_TYPE || node->dataType == FLOAT_PTR_TYPE) {
+            fprintf(fout, "\taddi x%d, x%d, 0\n", reg, addrReg);
+            freeReg(addrReg, 'i');
+            return;
+        }
     }
 
     switch (node->dataType) {
