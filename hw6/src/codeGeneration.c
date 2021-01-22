@@ -85,9 +85,6 @@ void genDeclarationNode(AST_NODE* declarationNode)
         case FUNCTION_DECL:
             genFuncDecl(declarationNode);
             break;
-        case FUNCTION_PARAMETER_DECL:
-            //genFuncParamDecl(declarationNode);
-            break;
         default:
             fprintf(stderr, "Invalid declaration type in declaration node\n");
             exit(1);
@@ -191,12 +188,7 @@ void genFuncDecl(AST_NODE* declarationNode)
     char endLabel[128];
     snprintf(endLabel, 128, "_end_%s", funcName);
 
-    AST_NODE* paramNode = paramListNode->child;
-    int paramOffset = 8;
-    while (paramNode) {
-        genFuncParamDecl(paramNode, &paramOffset);
-        paramNode = paramNode->rightSibling;
-    }
+    genFuncParamDecl(paramListNode);
     
     genBlockNode(blockNode, endLabel);
 
@@ -208,16 +200,21 @@ void genFuncDecl(AST_NODE* declarationNode)
                   "_frameSize_%s: .word %lld\n", funcName, frameSize);
 }
 
-void genFuncParamDecl(AST_NODE* declarationNode, int* offset)
+void genFuncParamDecl(AST_NODE* paramListNode)
 {
-    AST_NODE* typeNode = declarationNode->child;
-    AST_NODE* idNode = typeNode->rightSibling;
-    SymbolTableEntry *entry = getSymtabEntry(idNode);
-    entry->offset = -(*offset);
-    if (idNode->dataType == INT_PTR_TYPE || idNode->dataType == FLOAT_PTR_TYPE) {
-        *offset += 8;
-    } else {
-        *offset += 4;
+    AST_NODE* paramNode = paramListNode->child;
+    long long offset = 8;
+    while (paramNode) {
+        AST_NODE* typeNode = paramNode->child;
+        AST_NODE* idNode = typeNode->rightSibling;
+        SymbolTableEntry *entry = getSymtabEntry(idNode);
+        entry->offset = -(offset);
+        if (idNode->dataType == INT_PTR_TYPE || idNode->dataType == FLOAT_PTR_TYPE) {
+            offset += 8;
+        } else {
+            offset += 4;
+        }
+        paramNode = paramNode->rightSibling;
     }
 }
 
