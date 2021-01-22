@@ -15,6 +15,7 @@ void genFuncHead(char* funcName);
 void genProloque(char* funcName);
 void genEpilogue(char* funcName);
 void genFuncDecl(AST_NODE* declarationNode);
+void genFuncParamDecl(AST_NODE* paramListNode);
 void genBlockNode(AST_NODE* blockNode, char* endLabel);
 void genStmtNode(AST_NODE* stmtNode, char* endLabel);
 void genWhileStmt(AST_NODE* stmtNode, char* endLabel);
@@ -51,6 +52,8 @@ void restoreCallerSavedRegisters();
 void initFrameSize();
 long long allocFrame(long long size);
 long long getFrameSize();
+void pushParameters(AST_NODE* paramListNode);
+void popParameters(AST_NODE* paramListNode);
 
 /* Label Management */
 int getLabel();
