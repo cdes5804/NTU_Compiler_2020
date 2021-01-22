@@ -132,7 +132,7 @@ void genVarDecl(AST_NODE* declarationNode)
 {
     AST_NODE *idNode = declarationNode->child->rightSibling;
     for (; idNode; idNode = idNode->rightSibling) {
-        SymbolTableEntry *symtabEntry = idNode->semantic_value.identifierSemanticValue.symbolTableEntry;
+        SymbolTableEntry *symtabEntry = getSymtabEntry(idNode);
         if (!symtabEntry) {
             fprintf(stderr, "genVarDecl: Symbol Table Entry of ID Node is NULL\n");
             exit(1);
@@ -187,9 +187,17 @@ void genFuncDecl(AST_NODE* declarationNode)
     
     genFuncHead(funcName);
     genPrologue(funcName);
-    
+
     char endLabel[128];
     snprintf(endLabel, 128, "_end_%s", funcName);
+
+    AST_NODE* paramNode = paramListNode->child;
+    int paramOffset = 8;
+    while (paramNode) {
+        genFuncParamDecl(paramNode, &paramOffset);
+        paramNode = paramNode->rightSibling;
+    }
+    
     genBlockNode(blockNode, endLabel);
 
     fprintf(fout, "\tj %s\n", endLabel);
@@ -198,6 +206,19 @@ void genFuncDecl(AST_NODE* declarationNode)
     long long frameSize = getFrameSize();
     fprintf(fout, ".data\n"
                   "_frameSize_%s: .word %lld\n", funcName, frameSize);
+}
+
+void genFuncParamDecl(AST_NODE* declarationNode, int* offset)
+{
+    AST_NODE* typeNode = declarationNode->child;
+    AST_NODE* idNode = typeNode->rightSibling;
+    SymbolTableEntry *entry = getSymtabEntry(idNode);
+    entry->offset = -(*offset);
+    if (idNode->dataType == INT_PTR_TYPE || idNode->dataType == FLOAT_PTR_TYPE) {
+        *offset += 8;
+    } else {
+        *offset += 4;
+    }
 }
 
 void genBlockNode(AST_NODE* blockNode, char* endLabel)
@@ -240,8 +261,8 @@ void genStmtNode(AST_NODE* stmtNode, char* endLabel)
 
 void genWhileStmt(AST_NODE* whileNode, char* endLabel)
 {
-    AST_NODE *testNode = whileNode->child;
-    AST_NODE *whileBodyNode = testNode->rightSibling;
+    AST_NODE* testNode = whileNode->child;
+    AST_NODE* whileBodyNode = testNode->rightSibling;
 
     int label = getLabel();
     fprintf(fout, ".whileTest%d:\n", label);
@@ -425,6 +446,8 @@ void genFunctionCall(AST_NODE* stmtNode)
     SymbolTableEntry* symtab_entry = retrieveSymbol(funcName);
     DATA_TYPE returnType = symtab_entry ? symtab_entry->attribute->attr.functionSignature->returnType : NONE_TYPE;
     bool hasReturnValue = returnType == INT_TYPE || returnType == FLOAT_TYPE;
+    bool hasParameters = paramListNode->child != NULL;
+    long long frameSize = 0;
 
     storeCallerSavedRegisters();
 
@@ -435,14 +458,22 @@ void genFunctionCall(AST_NODE* stmtNode)
     } else if (strcmp(funcName, "fread") == 0) {
         fprintf(fout, "\tcall _read_float\n");
     } else {
+        if (hasParameters) {
+            AST_NODE* paramNode = paramListNode->child;
+            while (paramNode) {
+                genExprRelatedNode(paramNode);
+                paramNode = paramNode->rightSibling;
+            }
+            pushParameters(paramListNode);
+        }
         fprintf(fout, "\tcall _start_%s\n", funcName);
+        popParameters(paramListNode);
     }
     if (hasReturnValue) {
         stmtNode->offset = allocFrame(4);
         int reg = 10;
         storeNode(stmtNode, reg);
     }
-
     restoreCallerSavedRegisters();
 }
 
@@ -509,7 +540,6 @@ void genExprNode(AST_NODE* exprNode)
         case BINARY_OPERATION:
             leftOperand = exprNode->child;
             rightOperand = leftOperand->rightSibling;
-
             // special case: short-circuit && ||
             if (exprNode->semantic_value.exprSemanticValue.op.binaryOp == BINARY_OP_AND) {
                 genLogicalAnd(exprNode, leftOperand, rightOperand);
@@ -1041,6 +1071,67 @@ void setFrameSize(long long frameSize)
     curFrameSize = frameSize;
 }
 
+void pushParameters(AST_NODE* paramListNode)
+{
+    AST_NODE* paramNode = paramListNode->child;
+    long long totalSize = 0;
+    while (paramNode) {
+        if (paramNode->dataType == INT_PTR_TYPE || paramNode->dataType == FLOAT_PTR_TYPE) {
+            totalSize += 8;
+        } else {
+            totalSize += 4;
+        }
+        paramNode = paramNode->rightSibling;
+    }
+    int reg = getReg('i');
+    fprintf(fout, "\tli x%d, %lld\n", reg, totalSize);
+    fprintf(fout, "\tsub sp, sp, x%d\n", reg);
+    freeReg(reg, 'i');
+    paramNode = paramListNode->child;
+    long long processedSize = 0;
+    while (paramNode) {
+        long long offset = paramNode->offset;
+        if (paramNode->dataType == INT_PTR_TYPE || paramNode->dataType == FLOAT_PTR_TYPE) {
+            int reg = getReg('i');
+            fprintf(fout, "\tld x%d, -%lld(fp)\n", reg, offset);
+            fprintf(fout, "\tsd x%d, %lld(sp)\n", reg, processedSize);
+            freeReg(reg, 'i');
+            processedSize += 8;
+        } else if (paramNode->dataType == INT_TYPE) {
+            int reg = getReg('i');
+            fprintf(fout, "\tlw x%d, -%lld(fp)\n", reg, offset);
+            fprintf(fout, "\tsw x%d, %lld(sp)\n", reg, processedSize);
+            freeReg(reg, 'i');
+            processedSize += 4;
+        } else {
+            int reg = getReg('f');
+            fprintf(fout, "\tflw f%d, -%lld(fp)\n", reg, offset);
+            fprintf(fout, "\tfsw f%d, %lld(sp)\n", reg, processedSize);
+            freeReg(reg, 'f');
+            processedSize += 4;
+        }
+        paramNode = paramNode->rightSibling;
+    }
+}
+
+void popParameters(AST_NODE* paramListNode)
+{
+    AST_NODE* paramNode = paramListNode->child;
+    long long totalSize = 0;
+    while (paramNode) {
+        if (paramNode->dataType == INT_PTR_TYPE || paramNode->dataType == FLOAT_PTR_TYPE) {
+            totalSize += 8;
+        } else {
+            totalSize += 4;
+        }
+        paramNode = paramNode->rightSibling;
+    }
+    int reg = getReg('i');
+    fprintf(fout, "\tli x%d, %lld\n", reg, totalSize);
+    fprintf(fout, "\tadd sp, sp, x%d\n", reg);
+    freeReg(reg, 'i');
+}
+
 /******************************
  * Label Management
  ******************************/
@@ -1287,7 +1378,8 @@ unsigned getFloatRepr(float f)
 
 void addi(int reg, long long offset) {
     int tmpReg = getReg('i');
-    fprintf(fout, "\tli x%d, -%lld\n", tmpReg, offset);
+    offset *= -1;
+    fprintf(fout, "\tli x%d, %lld\n", tmpReg, offset);
     fprintf(fout, "\tadd x%d, fp, x%d\n", reg, tmpReg);
     freeReg(tmpReg, 'i');
 }
