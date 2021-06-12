@@ -35,7 +35,7 @@ jobs:
       working-directory: ./hw3/src
       run: make
     - name: make hw4
-      working-directory: ./hw4/src
+      working-directory: ./hw4
       run: make
     - name: make hw5
       working-directory: ./hw5/src
