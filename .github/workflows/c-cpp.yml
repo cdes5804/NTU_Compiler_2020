@@ -29,4 +29,17 @@ jobs:
       working-directory: ./hw2
       run: |
           python3 test.py
+    - name: make hw3
+      working-directory: ./hw3/src
+      run: make
+    - name: make hw4
+      working-directory: ./hw4/src
+      run: make
+    - name: make hw5
+      working-directory: ./hw5/src
+      run: make
+    - name: make hw6
+      working-directory: ./hw6/src
+      run: make
+    
 
