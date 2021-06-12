@@ -29,6 +29,8 @@ jobs:
       working-directory: ./hw2
       run: |
           python3 test.py
+    - name: setup bison
+      run: sudo apt install bison
     - name: make hw3
       working-directory: ./hw3/src
       run: make
